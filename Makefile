@@ -1,6 +1,6 @@
 
 FLAGS=/nologo /EHsc /std:c++20
-SOURCES=main.cpp args.cpp
+SOURCES=main.cpp args.cpp stb/stb.cpp
 HEADERS=args.h
 EXE_OUT=steg.exe
 
