@@ -3,11 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <optional>
 #include <format>
-#include <filesystem>
-#include <unordered_map>
-#include <algorithm>
 
 void print_usage(char const* exe_name);
 
