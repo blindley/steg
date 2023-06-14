@@ -6,3 +6,7 @@ EXE_OUT=steg.exe
 
 $(EXE_OUT): Makefile $(SOURCES) $(HEADERS)
 	cl $(FLAGS) /Fe:$(EXE_OUT) $(SOURCES)
+
+clean:
+	del *.exe
+	del *.obj
