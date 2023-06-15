@@ -4,6 +4,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 template<typename C, typename T>
 bool contains(C const& container, T const& item) {
@@ -14,42 +15,44 @@ bool contains(C const& container, T const& item) {
 }
 
 void debug_print(std::ostream& ostr, Args const& args) {
-    ostr << "Args {\n";
-    ostr << std::format("    extract = {}", args.extract) << '\n';
-    ostr << std::format("    hide = {}", args.hide) << '\n';
-    ostr << std::format("    message_file = {}", args.message_file) << '\n';
-    ostr << std::format("    cover_file = {}", args.cover_file) << '\n';
-    ostr << std::format("    stego_file = {}", args.stego_file) << '\n';
-    ostr << std::format("    output_file = {}", args.output_file) << '\n';
-    ostr << std::format("    error = {}", args.error) << '\n';
+    ostr << "Args { ";
+    ostr << std::format("extract={} ", args.extract);
+    ostr << std::format("hide={} ", args.hide);
+    ostr << std::format("message_file=\"{}\" ", args.message_file);
+    ostr << std::format("cover_file=\"{}\" ", args.cover_file);
+    ostr << std::format("stego_file=\"{}\" ", args.stego_file);
+    ostr << std::format("output_file=\"{}\" ", args.output_file);
+    ostr << std::format("error=\"{}\" ", args.error);
     ostr << "}\n";
 }
 
 Args parse_args(int argc, char** argv) {
     Args args = {};
 
+    std::vector<std::string> arg_vec(argv, argv + argc);
+
     std::unordered_map<std::string, std::string> args_map;
-    char const* boolean_arg_list[] = {"--hide", "--extract"};
-    char const* args_with_args[] = {"-m", "-c", "-s", "-o"};
+    std::string boolean_arg_list[] = {"--hide", "--extract"};
+    std::string args_with_args[] = {"-m", "-c", "-s", "-o"};
 
     for (size_t i = 1; i < argc; i++) {
-        if (contains(boolean_arg_list, argv[i])) {
-            args_map[argv[i]] = "";
-        } else if (contains(args_with_args, argv[i])) {
-            if (args_map.contains(argv[i])) {
-                args.error = std::format("Duplicate '{}' argument", argv[i]);
+        if (contains(boolean_arg_list, arg_vec[i])) {
+            args_map[arg_vec[i]] = "";
+        } else if (contains(args_with_args, arg_vec[i])) {
+            if (args_map.contains(arg_vec[i])) {
+                args.error = std::format("Duplicate '{}' argument", arg_vec[i]);
                 return args;
             }
 
             i++;
             if (i == argc) {
-                args.error = std::format("Unexpected end of argument list after '{}'", argv[i-1]);
+                args.error = std::format("Unexpected end of argument list after '{}'", arg_vec[i-1]);
                 return args;
             }
 
-            args_map[argv[i-1]] = argv[i];
+            args_map[arg_vec[i-1]] = arg_vec[i];
         } else {
-            args.error = std::format("Unexpected argument '{}'", argv[i]);
+            args.error = std::format("Unexpected argument '{}'", arg_vec[i]);
             return args;
         }
     }

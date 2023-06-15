@@ -17,6 +17,15 @@ int main(int argc, char** argv) {
         print_usage(argv[0]);
         std::exit(EXIT_FAILURE);
     }
+
+    if (args.hide) {
+        std::cout << "hide not yet implemented\n";
+    } else if (args.extract) {
+        std::cout << "extract not yet implemented\n";
+    } else {
+        std::cout << "you shouldn't be here!\n";
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 void print_usage(char const* exe_name) {
