@@ -1,14 +1,12 @@
 #include "image.h"
 #include "stb/stb_image.h"
 #include "stb/stb_image_write.h"
+#include "utility.h"
 
 #include <format>
 #include <cstdint>
 #include <iostream>
 #include <cassert>
-
-using u8 = std::uint8_t;
-using u32 = std::uint32_t;
 
 void debug_print(std::ostream& ostr, Image const& img) {
     ostr << "Image { ";

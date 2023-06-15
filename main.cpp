@@ -1,5 +1,6 @@
 #include "args.h"
 #include "image.h"
+#include "utility.h"
 
 #include <iostream>
 #include <vector>

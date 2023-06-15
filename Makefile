@@ -2,7 +2,7 @@
 FLAGS=/nologo /EHsc /std:c++20
 DEBUG_FLAGS=/Zi /MDd /DDEBUG
 SOURCES=main.cpp args.cpp image.cpp stb/stb.cpp
-HEADERS=args.h image.h
+HEADERS=args.h image.h utility.h
 EXE_OUT=steg.exe
 DEBUG_EXE=steg_d.exe
 
