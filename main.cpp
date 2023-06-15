@@ -10,7 +10,9 @@ void print_usage(char const* exe_name);
 int main(int argc, char** argv) {
     auto args = parse_args(argc, argv);
 
+#ifndef NDEBUG
     debug_print(std::cout, args);
+#endif
 
     if (!args.error.empty()) {
         std::cout << "ERROR: " << args.error << '\n';
