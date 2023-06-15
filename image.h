@@ -10,4 +10,4 @@ struct Image {
 };
 
 void debug_print(std::ostream& ostr, Image const& img);
-Image load_image(char const* filename);
+Image load_image(std::string const& filename);
