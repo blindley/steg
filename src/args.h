@@ -11,8 +11,6 @@ struct Args {
     std::string cover_file;
     std::string stego_file;
     std::string output_file;
-
-    std::string error;
 };
 
 void debug_print(std::ostream& ostr, Args const& args);

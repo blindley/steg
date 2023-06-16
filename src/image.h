@@ -11,7 +11,6 @@ struct Image {
     int width;
     int height;
     std::vector<u8> pixel_data;
-    std::string error;
 
     void save(std::string const& filename);
     static Image load(std::string const& filename);

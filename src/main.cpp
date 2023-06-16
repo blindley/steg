@@ -11,19 +11,35 @@
 
 void print_usage(char const* exe_name);
 void save_file(std::string const& filename, u8 const* data, size_t len);
+void main_impl(int argc, char** argv);
 
 int main(int argc, char** argv) {
+    std::string error;
+    try {
+        main_impl(argc, argv);
+    } catch (std::exception const& e) {
+        error = e.what();
+    } catch (std::string e) {
+        error = e;
+    } catch (char const* e) {
+        error = e;
+    } catch (...) {
+        error = "unknown error";
+    }
+
+    if (!error.empty()) {
+        std::cout << "ERROR: " << error << '\n';
+        print_usage(argv[0]);
+        std::exit(EXIT_FAILURE);
+    }
+}
+
+void main_impl(int argc, char** argv) {
     auto args = parse_args(argc, argv);
 
     #ifdef DEBUG
     debug_print(std::cout, args);
     #endif
-
-    if (!args.error.empty()) {
-        std::cout << "ERROR: " << args.error << '\n';
-        print_usage(argv[0]);
-        std::exit(EXIT_FAILURE);
-    }
 
     if (args.hide) {
         auto cover_file = Image::load(args.cover_file);
@@ -31,11 +47,6 @@ int main(int argc, char** argv) {
         #ifdef DEBUG
         debug_print(std::cout, cover_file);
         #endif
-
-        if (!cover_file.error.empty()) {
-            std::cout << "ERROR: " << cover_file.error << '\n';
-            std::exit(EXIT_FAILURE);
-        }
 
         unsigned char const* msg = (unsigned char const*)"hello";
         std::vector<unsigned char> message(msg, msg + 6);
@@ -64,8 +75,7 @@ int main(int argc, char** argv) {
         std::cout << "extracted " << extracted_message.size() << " bytes to "
             << args.output_file << '\n';
     } else {
-        std::cout << "you shouldn't be here!\n";
-        std::exit(EXIT_FAILURE);
+        throw "you shouldn't be here!";
     }
 }
 

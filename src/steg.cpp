@@ -58,9 +58,7 @@ void hide(Image& img, std::vector<u8> const& message) {
 
     size_t max_bit_count = img.width * img.height * 3;
     if (total_bit_count > max_bit_count) {
-        img = {};
-        img.error = "Error: message is too large for cover file";
-        return;
+        throw "Error: message is too large for cover file";
     }
 
     LSBHider hider = {};

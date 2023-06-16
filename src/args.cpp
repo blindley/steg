@@ -22,7 +22,6 @@ void debug_print(std::ostream& ostr, Args const& args) {
     ostr << std::format("cover_file=\"{}\" ", args.cover_file);
     ostr << std::format("stego_file=\"{}\" ", args.stego_file);
     ostr << std::format("output_file=\"{}\" ", args.output_file);
-    ostr << std::format("error=\"{}\" ", args.error);
     ostr << "}\n";
 }
 
@@ -40,20 +39,18 @@ Args parse_args(int argc, char** argv) {
             args_map[arg_vec[i]] = "";
         } else if (contains(args_with_args, arg_vec[i])) {
             if (args_map.contains(arg_vec[i])) {
-                args.error = std::format("Duplicate '{}' argument", arg_vec[i]);
-                return args;
+                throw std::format("Duplicate '{}' argument", arg_vec[i]);
             }
 
             i++;
             if (i == argc) {
-                args.error = std::format("Unexpected end of argument list after '{}'", arg_vec[i-1]);
-                return args;
+                throw std::format("Unexpected end of argument list after '{}'", arg_vec[i-1]);
             }
 
             args_map[arg_vec[i-1]] = arg_vec[i];
         } else {
-            args.error = std::format("Unexpected argument '{}'", arg_vec[i]);
-            return args;
+            auto error = std::format("Unexpected argument '{}'", arg_vec[i]);
+            throw error;
         }
     }
 
@@ -65,45 +62,38 @@ Args parse_args(int argc, char** argv) {
     args.output_file = args_map["-o"];
 
     if (!args.hide && !args.extract) {
-        args.error = "No mode selected";
-        return args;
+        throw "No mode selected";
     }
 
     if (args.hide && args.extract) {
-        args.error = "Mode --hide not compatible with mode --extract";
-        return args;
+        throw "Mode --hide not compatible with mode --extract";
     }
 
     if (args.hide) {
         if (args.message_file.empty()) {
-            args.error = "Missing '-m' argument";
-            return args;
+            throw "Missing '-m' argument";
         }
 
         if (args.cover_file.empty()) {
-            args.error = "Missing '-c'";
-            return args;
+            throw "Missing '-c'";
         }
 
         if (!args.stego_file.empty()) {
-            args.error = "Unexpected argument '-s' in hide mode";
-            return args;
+            throw "Unexpected argument '-s' in hide mode";
         }
     }
 
     if (args.extract) {
         if (args.stego_file.empty()) {
-            args.error = "Missing '-s' argument";
-            return args;
+            throw "Missing '-s' argument";
         }
 
         if (!args.message_file.empty()) {
-            args.error = "Unexpected argument '-m' in extract mode";
-            return args;
+            throw "Unexpected argument '-m' in extract mode";
         }
 
         if (!args.cover_file.empty()) {
-            args.error = "Unexpected argument '-c' in extract mode";
+            throw "Unexpected argument '-c' in extract mode";
         }
     }
 

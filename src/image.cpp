@@ -10,12 +10,8 @@
 
 void debug_print(std::ostream& ostr, Image const& img) {
     ostr << "Image { ";
-    if (img.error.empty()) {
-        ostr << "width=" << img.width << ' ';
-        ostr << "height=" << img.height << ' ';
-    } else {
-        ostr << "error=\"" << img.error << "\" ";
-    }
+    ostr << "width=" << img.width << ' ';
+    ostr << "height=" << img.height << ' ';
     ostr << "}\n";
 }
 
@@ -33,7 +29,7 @@ Image Image::load(std::string const& filename) {
     int x, y;
     auto data = stbi_load(filename.c_str(), &x, &y, nullptr, 4);
     if (data == nullptr) {
-        img.error = std::format("Unable to load \"{}\".", filename);
+        throw std::format("Unable to load \"{}\".", filename);
     } else {
         img.width = x;
         img.height = y;
