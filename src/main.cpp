@@ -1,6 +1,6 @@
 #include "args.h"
 #include "image.h"
-#include "lsb_hiding.h"
+#include "steg.h"
 #include "utility.h"
 
 #include <iostream>

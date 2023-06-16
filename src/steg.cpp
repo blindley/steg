@@ -1,5 +1,5 @@
 
-#include "lsb_hiding.h"
+#include "steg.h"
 
 void LSBHider::write_bytes(u8 const* data, size_t count) {
     for (size_t data_index = 0; data_index < count; data_index++) {
