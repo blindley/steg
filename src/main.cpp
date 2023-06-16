@@ -50,8 +50,7 @@ void main_impl(int argc, char** argv) {
         debug_print(std::cout, cover_file);
         #endif
 
-        unsigned char const* msg = (unsigned char const*)"hello";
-        std::vector<unsigned char> message(msg, msg + 6);
+        auto message = load_file(args.message_file);
         hide(cover_file, message);
 
         if (args.output_file.empty()) {

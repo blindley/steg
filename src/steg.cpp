@@ -52,21 +52,17 @@ void LSBExtractor::read_bytes(u8* data_out, size_t count) {
 }
 
 void hide(Image& img, std::vector<u8> const& message) {
-    size_t message_bit_count = message.size() * 8;
-    size_t total_bit_count = 32 + message_bit_count;
-
-    size_t max_bit_count = img.width * img.height * 3;
-    if (total_bit_count > max_bit_count) {
-        throw "Error: message is too large for cover file";
+    size_t max_capacity = img.width * img.height * 3 / 8 - sizeof(u32);
+    if (message.size() > max_capacity) {
+        throw "message is too large for cover file";
     }
 
     LSBHider hider = {};
     hider.p_img = &img;
     u32 size = message.size();
+
     u8 size_vec[4];
-    for (size_t i = 0; i < 4; i++) {
-        size_vec[i] = (size >> (8 * (3 - i))) & 0xff;
-    }
+    u32_to_bytes_be(size, size_vec);
 
     auto old_pixels = img.pixel_data;
     hider.write_bytes(size_vec, 4);
