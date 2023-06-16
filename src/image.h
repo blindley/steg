@@ -18,7 +18,5 @@ struct Image {
 };
 
 void debug_print(std::ostream& ostr, Image const& img);
-void hide(Image& img, std::vector<u8> const& message);
-std::vector<u8> extract(Image const& img);
 
 #endif // IMAGE_202306151742
