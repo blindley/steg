@@ -7,8 +7,10 @@
 #include <vector>
 #include <string>
 #include <format>
+#include <fstream>
 
 void print_usage(char const* exe_name);
+void save_file(std::string const& filename, u8 const* data, size_t len);
 
 int main(int argc, char** argv) {
     auto args = parse_args(argc, argv);
@@ -53,11 +55,14 @@ int main(int argc, char** argv) {
 
         auto extracted_message = extract(steg_file);
 
-        std::cout << "[ ";
-        for (auto e : extracted_message) {
-            std::cout << std::format("{:02x} ", e);
+        if (args.output_file.empty()) {
+            args.output_file = "data/message.dat";
         }
-        std::cout << "]\n";
+
+        save_file(args.output_file, extracted_message.data(), extracted_message.size());
+
+        std::cout << "extracted " << extracted_message.size() << " bytes to "
+            << args.output_file << '\n';
     } else {
         std::cout << "you shouldn't be here!\n";
         std::exit(EXIT_FAILURE);
@@ -68,4 +73,9 @@ void print_usage(char const* exe_name) {
     std::cout << "Usage:\n";
     std::cout << "    " << exe_name << " --hide -m <message file> -c <coverfile> [-o <stego file>]\n";
     std::cout << "    " << exe_name << " --extract -s <stego file> [-o <message file]\n";
+}
+
+void save_file(std::string const& filename, u8 const* data, size_t len) {
+    std::ofstream ofstr(filename, std::ios::binary);
+    ofstr.write((char const*)data, len);
 }
