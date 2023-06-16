@@ -6,7 +6,7 @@ struct LSBHider {
     size_t write_index;
 
     void write_bytes(u8 const* data, size_t count);
-    void read_bytes(u8* data_out, size_t count);
+    void write_u32(u32 value);
 };
 
 struct LSBExtractor {
@@ -14,6 +14,7 @@ struct LSBExtractor {
     size_t read_index;
 
     void read_bytes(u8* data_out, size_t count);
+    u32 read_u32();
 };
 
 void LSBHider::write_bytes(u8 const* data, size_t count) {
@@ -31,6 +32,12 @@ void LSBHider::write_bytes(u8 const* data, size_t count) {
             this->write_index++;
         }
     }
+}
+
+void LSBHider::write_u32(u32 value) {
+    u8 buffer[4];
+    u32_to_bytes_be(value, buffer);
+    write_bytes(buffer, 4);
 }
 
 void LSBExtractor::read_bytes(u8* data_out, size_t count) {
@@ -51,6 +58,12 @@ void LSBExtractor::read_bytes(u8* data_out, size_t count) {
     }
 }
 
+u32 LSBExtractor::read_u32() {
+    u8 buffer[4];
+    read_bytes(buffer, 4);
+    return u32_from_bytes_be(buffer);
+}
+
 void hide(Image& img, std::vector<u8> const& message) {
     size_t max_capacity = img.width * img.height * 3 / 8 - sizeof(u32);
     if (message.size() > max_capacity) {
@@ -61,11 +74,7 @@ void hide(Image& img, std::vector<u8> const& message) {
     hider.p_img = &img;
     u32 size = message.size();
 
-    u8 size_vec[4];
-    u32_to_bytes_be(size, size_vec);
-
-    auto old_pixels = img.pixel_data;
-    hider.write_bytes(size_vec, 4);
+    hider.write_u32(size);
     hider.write_bytes(message.data(), message.size());
 }
 
@@ -75,9 +84,7 @@ std::vector<u8> extract(Image const& img) {
     LSBExtractor extractor = {};
     extractor.p_img = &img;
 
-    u8 buffer[4];
-    extractor.read_bytes(buffer, 4);
-    u32 size = u32_from_bytes_be(buffer);
+    u32 size = extractor.read_u32();
 
     message.resize(size);
     extractor.read_bytes(message.data(), size);
