@@ -4,7 +4,6 @@
 struct LSBHider {
     Image* p_img;
     size_t write_index;
-    size_t read_index;
 
     void write_bytes(u8 const* data, size_t count);
     void read_bytes(u8* data_out, size_t count);

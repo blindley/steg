@@ -11,6 +11,8 @@
 
 void print_usage(char const* exe_name);
 void save_file(std::string const& filename, u8 const* data, size_t len);
+void save_file(std::string const& filename, std::vector<u8> const& data);
+std::vector<u8> load_file(std::string const& filename);
 void main_impl(int argc, char** argv);
 
 int main(int argc, char** argv) {
@@ -28,7 +30,7 @@ int main(int argc, char** argv) {
     }
 
     if (!error.empty()) {
-        std::cout << "ERROR: " << error << '\n';
+        std::cerr << "ERROR: " << error << '\n';
         print_usage(argv[0]);
         std::exit(EXIT_FAILURE);
     }
@@ -87,5 +89,44 @@ void print_usage(char const* exe_name) {
 
 void save_file(std::string const& filename, u8 const* data, size_t len) {
     std::ofstream ofstr(filename, std::ios::binary);
+    if (!ofstr) {
+        throw std::format("unable to open {} for writing", filename);
+    }
+
     ofstr.write((char const*)data, len);
+
+    if (!ofstr) {
+        throw std::format("error writing to {}", filename);
+    }
+}
+
+void save_file(std::string const& filename, std::vector<u8> const& data) {
+    save_file(filename, data.data(), data.size());
+}
+
+std::vector<u8> load_file(std::string const& filename) {
+    std::ifstream ifstr(filename, std::ios::binary);
+
+    if (!ifstr) {
+        throw std::format("unable to open {}", filename);
+    }
+
+    ifstr.seekg(0, std::ios::end);
+    auto size = ifstr.tellg();
+    ifstr.seekg(0, std::ios::beg);
+
+    if (!ifstr) {
+        throw std::format("error reading {}", filename);
+    }
+
+    std::vector<u8> data;
+    data.resize(size);
+
+    ifstr.read((char*)data.data(), size);
+
+    if (!ifstr) {
+        throw std::format("error reading {}", filename);
+    }
+
+    return data;
 }
