@@ -1,18 +1,11 @@
 #include "args.h"
+#include "utility.h"
 
 #include <format>
 #include <iostream>
 #include <unordered_map>
 #include <string>
 #include <vector>
-
-template<typename C, typename T>
-bool contains(C const& container, T const& item) {
-    auto b = std::begin(container);
-    auto e = std::end(container);
-    auto found = std::find(b, e, item) != e;
-    return found;
-}
 
 void debug_print(std::ostream& ostr, Args const& args) {
     ostr << "Args { ";

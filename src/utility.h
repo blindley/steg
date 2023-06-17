@@ -26,4 +26,12 @@ inline void u32_to_bytes_be(u32 value, u8* bytes_out) {
     bytes_out[3] = value;
 }
 
+template<typename C, typename T>
+bool contains(C const& container, T const& item) {
+    auto b = std::begin(container);
+    auto e = std::end(container);
+    auto found = std::find(b, e, item) != e;
+    return found;
+}
+
 #endif // UTILITY_202306151744

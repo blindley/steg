@@ -9,6 +9,8 @@ add_executable(steg
     src/image.cpp
     src/main.cpp
     src/steg.cpp
+    src/lsb.cpp
+    src/bcps.cpp
     src/stb/stb.cpp
 )
 
