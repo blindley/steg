@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include "utility.h"
 #include "image.h"
 
@@ -93,4 +95,76 @@ namespace bcps {
         return chunks;
     }
 
+    namespace test {
+        int count_bits_set(u8 byte) {
+            int count = 0;
+            for (int i = 0; i < 8; i++) {
+                u8 mask = 1 << i;
+                if (byte & mask) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        TEST(bcps_tests, count_bits_set) {
+            EXPECT_EQ(count_bits_set(0), 0);
+            EXPECT_EQ(count_bits_set(255), 8);
+            for (int i = 0; i < 8; i++) {
+                u8 byte = 1 << i;
+                EXPECT_EQ(count_bits_set(byte), 1);
+                EXPECT_EQ(count_bits_set((u8)(~byte)), 7);
+            }
+        }
+
+        TEST(bcps_tests, GrayCodes) {
+            using namespace ::bcps;
+            for (int i = 0; i < 256; i++) {
+                // subsequent gray codes should have exactly 1 bit difference
+                // so xoring them together should result in a byte with exactly
+                // 1 bit set
+                auto diff = pbc_to_cgc(i) ^ pbc_to_cgc(i+1);
+                EXPECT_EQ(count_bits_set(diff), 1);
+            }
+        }
+
+        u8 get_bit_by_index(u8 value, size_t bit_index) {
+            size_t shift = 7 - bit_index;
+            return (value >> shift) & 1;
+        }
+
+        TEST(bcps_tests, get_bit_by_index) {
+            u8 value = 0x55;
+            u8 vcomp = ~value;
+            for (size_t i = 0; i < 8; i++) {
+                EXPECT_EQ(get_bit_by_index(value, i), i % 2);
+                EXPECT_EQ(get_bit_by_index(vcomp, i), (i + 1) % 2);
+            }
+        }
+
+        TEST(bcps_tests, extract_bitplane_byte) {
+            u8 test_buffer[32];
+            for (int i = 0; i < 32; i++) {
+                test_buffer[i] = i;
+            }
+
+            std::vector<int> bits;
+            for (size_t i = 0; i < 32; i++) {
+                for (size_t j = 0; j < 8; j++) {
+                    int bit_value = get_bit_by_index(test_buffer[i], j);
+                    bits.push_back(bit_value);
+                }
+            }
+
+            using ::bcps::extract_bitplane_byte;
+            for (size_t i = 0; i < 32; i++) {
+                u8 expected_value = 0;
+                for (size_t j = 0; j < 8; j++) {
+                    expected_value <<= 1;
+                    expected_value |= bits[j * 32 + i];
+                }
+                EXPECT_EQ(extract_bitplane_byte(test_buffer, i), expected_value);
+            }
+        }
+    }
 }
