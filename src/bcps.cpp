@@ -4,6 +4,7 @@
 #include "image.h"
 
 #include <vector>
+#include <cstdlib>
 
 #define CHUNK_SIZE 8
 #define NUM_CHUNK_BORDERS (2 * BITPLANE_CHUNK_SIZE * (BITPLANE_CHUNK_SIZE - 1))
@@ -47,7 +48,14 @@ namespace bcps {
     }
 
     void insert_bitplane_byte(u8 byte, u8* pixel_ptr, size_t bitplane_index) {
-
+        pixel_ptr += bitplane_index / 8;
+        size_t bitshift = 7 - (bitplane_index % 8);
+        for (int i = 0; i < 8; i++) {
+            u8 mask_byte = ((byte >> (7 - i)) & 1) << bitshift;
+            *pixel_ptr &= ~(1 << bitshift);
+            *pixel_ptr |= mask_byte;
+            pixel_ptr += 4;
+        }
     }
 
     void extract_bitplane_chunk(u8 const* pixel_ptr, size_t bitplane_index, size_t stride, u8* out_ptr) {
@@ -164,6 +172,33 @@ namespace bcps {
                     expected_value |= bits[j * 32 + i];
                 }
                 EXPECT_EQ(extract_bitplane_byte(test_buffer, i), expected_value);
+            }
+        }
+
+        TEST(bcps_tests, insert_bitplane_byte) {
+            u8 random_buffer[32];
+            for (size_t i = 0; i < 32; i++) {
+                random_buffer[i] = rand();
+            }
+
+            u8 expected_values[32] = {
+                0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                0b00000000, 0b00000000, 0b11111111, 0b11111111,
+                0b00000000, 0b11111111, 0b00000000, 0b11111111,
+                0b00001111, 0b00001111, 0b00001111, 0b00001111,
+                0b00110011, 0b00110011, 0b00110011, 0b00110011,
+                0b01010101, 0b01010101, 0b01010101, 0b01010101,
+            };
+
+            using ::bcps::insert_bitplane_byte;
+            for (size_t i = 0; i < 32; i++) {
+                insert_bitplane_byte(i, random_buffer, i);
+            }
+
+            for (size_t i = 0; i < 32; i++) {
+                EXPECT_EQ(random_buffer[i], expected_values[i]);
             }
         }
     }
