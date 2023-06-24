@@ -201,5 +201,39 @@ namespace bcps {
                 EXPECT_EQ(random_buffer[i], expected_values[i]);
             }
         }
+
+        TEST(bcps_tests, extract_bitplane_chunk) {
+            using namespace ::bcps;
+            size_t const image_width = 9;
+            size_t const image_height = 9;
+            std::vector<u8> pixels;
+            pixels.resize(image_width * image_height * 4);
+            for (auto & e : pixels) {
+                e = rand();
+            }
+
+            size_t const num_values_to_insert = 64 * 4;
+            std::vector<u8> values_to_insert;
+            for (size_t i = 0; i < num_values_to_insert; i++) {
+                values_to_insert.push_back(rand());
+            }
+
+            for (size_t bitplane_index = 0, value_index = 0; bitplane_index < 32; bitplane_index++) {
+                for (size_t row_index = 0; row_index < 8; row_index++, value_index++) {
+                    u8* pixel_ptr = pixels.data() + row_index * image_width * 4;
+                    insert_bitplane_byte(values_to_insert[value_index], pixel_ptr, bitplane_index);
+                }
+            }
+
+            std::vector<u8> extracted_chunks;
+            extracted_chunks.resize(num_values_to_insert);
+            size_t stride = image_width * 4;
+            for (size_t bitplane_index = 0; bitplane_index < 32; bitplane_index++) {
+                u8* out_ptr = extracted_chunks.data() + bitplane_index * 8;
+                extract_bitplane_chunk(pixels.data(), bitplane_index, stride, out_ptr);
+            }
+
+            EXPECT_EQ(values_to_insert, extracted_chunks);
+        }
     }
 }
