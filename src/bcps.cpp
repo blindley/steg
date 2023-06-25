@@ -153,3 +153,15 @@ std::vector<u8> de_planify(std::vector<u8> const& planed_data) {
 
     return data;
 }
+
+std::vector<u8> chunk_and_planify(Image const& img) {
+    auto chunked_data = chunkify(img);
+    binary_to_gray_code_inplace(chunked_data);
+    return planify(chunked_data);
+}
+
+void de_chunk_and_planify(Image& img, std::vector<u8> const& planed_data) {
+    auto chunked_data = de_planify(planed_data);
+    gray_code_to_binary_inplace(chunked_data);
+    de_chunkify(img, chunked_data);
+}
