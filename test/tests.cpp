@@ -35,3 +35,41 @@ TEST(bcps, gray_code_conversions) {
         ASSERT_EQ(a, ba);
     }
 }
+
+TEST(bcps, chunkify) {
+    Image img;
+    img.width = 9;
+    img.height = 9;
+    img.pixel_data.resize(9 * 9 * 4);
+
+    std::vector<u8> chunked_data;
+    for (int i = 0; i < 256; i++) {
+        chunked_data.push_back(i);
+    }
+
+    de_chunkify(img, chunked_data);
+
+    for (int y = 0; y < 9; y++) {
+        size_t offset = y * 9 * 4;
+        if (y < 8) {
+            u8 first_value = y * 8 * 4;
+            for (int i = 0; i < 8 * 4; i++) {
+                ASSERT_EQ(img.pixel_data[offset + i], first_value + i);
+            }
+
+            offset += 8 * 4;
+
+            for (int i = 0; i < 4; i++) {
+                ASSERT_EQ(img.pixel_data[offset + i], 0);
+            }
+        } else { // y == 8
+            for (int i = 0; i < 9 * 4; i++) {
+                ASSERT_EQ(img.pixel_data[offset + i], 0);
+            }
+        }
+    }
+
+    auto rechunked_data = chunkify(img);
+
+    ASSERT_EQ(chunked_data, rechunked_data);
+}

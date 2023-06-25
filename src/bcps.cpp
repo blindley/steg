@@ -25,7 +25,7 @@ std::vector<u8> chunkify(Image const& img) {
                 size_t pixel_index_y = pixel_index_y_start + pixel_index_y_offset;
                 size_t pixel_data_offset = 4 * (pixel_index_y * img.width + pixel_index_x);
 
-                for (size_t i = 0; i < 4; i++) {
+                for (size_t i = 0; i < 32; i++) {
                     chunked_data.push_back(img.pixel_data[pixel_data_offset + i]);
                 }
             }
@@ -53,7 +53,7 @@ void de_chunkify(Image& img, std::vector<u8> const& chunked_data) {
                 size_t pixel_index_y = pixel_index_y_start + pixel_index_y_offset;
                 size_t pixel_data_offset = 4 * (pixel_index_y * img.width + pixel_index_x);
 
-                for (size_t i = 0; i < 4; i++) {
+                for (size_t i = 0; i < 32; i++) {
                     img.pixel_data[pixel_data_offset + i] = chunked_data[chunked_data_offset];
                     chunked_data_offset++;
                 }
