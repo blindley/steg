@@ -73,6 +73,8 @@ TEST(bcps, chunkify) {
     auto rechunked_data = chunkify(img);
 
     ASSERT_EQ(chunked_data, rechunked_data);
+
+    // TODO: add tests for images with more than one chunk
 }
 
 TEST(bcps, bitplane_bytes) {
@@ -120,4 +122,19 @@ TEST(bcps, bitplane_bytes) {
         u8 expected_value = expected_data[bitplane_index];
         ASSERT_EQ(value, expected_value);
     }
+}
+
+TEST(bpcs, planify) {
+    std::vector<u8> data;
+    for (int i = 0; i < 4096; i++) {
+        data.push_back(rand() >> 7);
+    }
+
+    auto planed_data = planify(data);
+
+    ASSERT_NE(data, planed_data);
+
+    auto de_planed_data = de_planify(planed_data);
+
+    ASSERT_EQ(data, de_planed_data);
 }

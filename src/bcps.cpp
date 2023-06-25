@@ -108,34 +108,48 @@ void insert_bitplane_byte(u8* byte_ptr, size_t bitplane_index, u8 inserted_byte)
     }
 }
 
-std::vector<u8> planify(std::vector<u8> const& vec) {
-    std::vector<u8> planified_vec;
-    planified_vec.resize(vec.size());
+void extract_bitplane(u8 const* data_ptr, size_t bitplane_index, u8* planed_data_ptr,
+    size_t planed_data_byte_count)
+{
+    for (size_t i = 0; i < planed_data_byte_count; i++) {
+        *planed_data_ptr = extract_bitplane_byte(data_ptr, bitplane_index);
+        planed_data_ptr++;
+        data_ptr += 32;
+    }
+}
 
-    size_t num_chunks = vec.size() / 256;
+void insert_bitplane(u8* data_ptr, size_t bitplane_index, u8 const* planed_data_ptr,
+    size_t planed_data_byte_count)
+{
+    for (size_t i = 0; i < planed_data_byte_count; i++) {
+        insert_bitplane_byte(data_ptr, bitplane_index, *planed_data_ptr);
+        planed_data_ptr++;
+        data_ptr += 32;
+    }
+}
 
-    size_t bit_index_out = 0;
-    for (size_t plane_index = 0; plane_index < 32; plane_index++) {
-        size_t channel_index = plane_index % 4;
-        size_t bit_index_in_channel = 7 - (plane_index / 4);
+std::vector<u8> planify(std::vector<u8> const& data) {
+    std::vector<u8> planed_data(data.size());
 
-        for (size_t chunk_index = 0; chunk_index < num_chunks; chunk_index++) {
-            size_t chunk_start_index = chunk_index * 256;
-            for (size_t pixel_index_in_chunk = 0; pixel_index_in_chunk < 64; pixel_index_in_chunk++) {
-                size_t byte_index_in = chunk_start_index + pixel_index_in_chunk * 4 + channel_index;
-                u8 bit_value = vec[byte_index_in] & (0x80 >> bit_index_in_channel);
+    size_t bytes_per_plane = data.size() / 32;
 
-                size_t byte_index_out = bit_index_out / 8;
-                size_t bit_offset_out = bit_index_out % 8;
-
-                if (bit_value) {
-                    planified_vec[byte_index_out] |= (0x80 >> bit_offset_out);
-                } else {
-                    planified_vec[byte_index_out] &= ~(0x80 >> bit_offset_out);
-                }
-            }
-        }
+    for (size_t bitplane_index = 0; bitplane_index < 32; bitplane_index++) {
+        u8* planed_data_ptr = planed_data.data() + bitplane_index * bytes_per_plane;
+        extract_bitplane(data.data(), bitplane_index, planed_data_ptr, bytes_per_plane);
     }
 
-    return planified_vec;
+    return planed_data;
+}
+
+std::vector<u8> de_planify(std::vector<u8> const& planed_data) {
+    std::vector<u8> data(planed_data.size());
+
+    size_t bytes_per_plane = data.size() / 32;
+
+    for (size_t bitplane_index = 0; bitplane_index < 32; bitplane_index++) {
+        u8 const* planed_data_ptr = planed_data.data() + bitplane_index * bytes_per_plane;
+        insert_bitplane(data.data(), bitplane_index, planed_data_ptr, bytes_per_plane);;
+    }
+
+    return data;
 }
