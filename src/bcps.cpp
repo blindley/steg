@@ -96,7 +96,7 @@ u8 extract_bitplane_byte(u8 const* byte_ptr, size_t bitplane_index) {
 
 void insert_bitplane_byte(u8* byte_ptr, size_t bitplane_index, u8 inserted_byte) {
     byte_ptr += bitplane_index / 8;
-    size_t shift = 7 - (bitplane_index % 8);
+    size_t shift = bitplane_index % 8;
     for (size_t i = 0; i < 8; i++) {
         u8 bit_value = inserted_byte & (0x80 >> i);
         if (bit_value) {

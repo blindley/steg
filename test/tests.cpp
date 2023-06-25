@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cstdlib>
 
 #include "../src/utility.h"
 #include "../src/image.h"
@@ -72,4 +73,51 @@ TEST(bcps, chunkify) {
     auto rechunked_data = chunkify(img);
 
     ASSERT_EQ(chunked_data, rechunked_data);
+}
+
+TEST(bcps, bitplane_bytes) {
+    std::vector<u8> data(32);
+
+    insert_bitplane_byte(data.data(), 31, 0x55);
+
+    // 0x55 = 0b01010101
+    std::vector<u8> expected_data = {
+        0, 0, 0, 0,     0, 0, 0, 1,
+        0, 0, 0, 0,     0, 0, 0, 1,
+        0, 0, 0, 0,     0, 0, 0, 1,
+        0, 0, 0, 0,     0, 0, 0, 1,
+    };
+
+    ASSERT_EQ(data, expected_data);
+
+    insert_bitplane_byte(data.data(), 0, 0xAA);
+
+    expected_data = {
+        0x80, 0, 0, 0,     0, 0, 0, 1,
+        0x80, 0, 0, 0,     0, 0, 0, 1,
+        0x80, 0, 0, 0,     0, 0, 0, 1,
+        0x80, 0, 0, 0,     0, 0, 0, 1,
+    };
+
+    ASSERT_EQ(data, expected_data);
+
+    u8 bp_31 = extract_bitplane_byte(data.data(), 31);
+    ASSERT_EQ(bp_31, 0x55);
+
+    u8 bp_0 = extract_bitplane_byte(data.data(), 0);
+    ASSERT_EQ(bp_0, 0xAA);
+
+    for (int i = 0; i < 32; i++) {
+        size_t bitplane_index = i;
+        u8 value_to_insert = std::rand() >> 7;
+        insert_bitplane_byte(data.data(), bitplane_index, value_to_insert);
+        expected_data[bitplane_index] = value_to_insert;
+    }
+
+    for (int i = 0; i < 32; i++) {
+        size_t bitplane_index = i;
+        u8 value = extract_bitplane_byte(data.data(), bitplane_index);
+        u8 expected_value = expected_data[bitplane_index];
+        ASSERT_EQ(value, expected_value);
+    }
 }
