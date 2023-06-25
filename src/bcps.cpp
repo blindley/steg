@@ -5,235 +5,137 @@
 
 #include <vector>
 #include <cstdlib>
+#include <algorithm>
 
-#define CHUNK_SIZE 8
-#define NUM_CHUNK_BORDERS (2 * BITPLANE_CHUNK_SIZE * (BITPLANE_CHUNK_SIZE - 1))
+std::vector<u8> chunkify(Image const& img) {
+    // taking advantage of integer division truncation
+    size_t chunks_in_width = img.width / 8;
+    size_t chunks_in_height = img.height / 8;
+    size_t usable_width = chunks_in_width * 8;
+    size_t usable_height = chunks_in_height * 8;
 
-namespace bcps {
+    std::vector<u8> chunked_data;
+    chunked_data.reserve(usable_width * usable_height * 4);
 
-    // Functions for converting between pbc (pure binary coding) and cgc (canonical gray coding)
-    u8 pbc_to_cgc(u8 byte) {
-        return byte ^ (byte >> 1);
-    }
+    for (size_t chunk_index_y = 0; chunk_index_y < chunks_in_height; chunk_index_y++) {
+        size_t pixel_index_y_start = chunk_index_y * 8;
+        for (size_t chunk_index_x = 0; chunk_index_x < chunks_in_width; chunk_index_x++) {
+            size_t pixel_index_x = chunk_index_x * 8;
+            for (size_t pixel_index_y_offset = 0; pixel_index_y_offset < 8; pixel_index_y_offset++) {
+                size_t pixel_index_y = pixel_index_y_start + pixel_index_y_offset;
+                size_t pixel_data_offset = 4 * (pixel_index_y * img.width + pixel_index_x);
 
-    u8 cgc_to_pbc(u8 byte) {
-        u8 mask = byte;
-        while (mask) {
-            mask >>= 1;
-            byte ^= mask;
-        }
-        return byte;
-    }
-
-    void pbc_to_cgc(u8* data, size_t len) {
-        for (size_t i = 0; i < len; i++)
-            data[i] = pbc_to_cgc(data[i]);
-    }
-
-    void cgc_to_pbc(u8* data, size_t len) {
-        for (size_t i = 0; i < len; i++)
-            data[i] = cgc_to_pbc(data[i]);
-    }
-
-    u8 extract_bitplane_byte(u8 const* pixel_ptr, size_t bitplane_index) {
-        pixel_ptr += bitplane_index / 8;
-        size_t bitshift = 7 - (bitplane_index % 8);
-        u8 byte = 0;
-        for (int i = 0; i < 8; i++) {
-            byte <<= 1;
-            byte |= ((*pixel_ptr >> bitshift) & 1);
-            pixel_ptr += 4;
-        }
-        return byte;
-    }
-
-    void insert_bitplane_byte(u8 byte, u8* pixel_ptr, size_t bitplane_index) {
-        pixel_ptr += bitplane_index / 8;
-        size_t bitshift = 7 - (bitplane_index % 8);
-        for (int i = 0; i < 8; i++) {
-            u8 mask_byte = ((byte >> (7 - i)) & 1) << bitshift;
-            *pixel_ptr &= ~(1 << bitshift);
-            *pixel_ptr |= mask_byte;
-            pixel_ptr += 4;
-        }
-    }
-
-    void extract_bitplane_chunk(u8 const* pixel_ptr, size_t bitplane_index, size_t stride, u8* out_ptr) {
-        for (size_t i = 0; i < 8; i++) {
-            *out_ptr++ = extract_bitplane_byte(pixel_ptr, bitplane_index);
-            pixel_ptr += stride;
-        }
-    }
-
-    std::vector<u8> extract_bitplane_chunks(Image const& img) {
-        std::vector<u8> chunks;
-        size_t chunks_per_width = img.width / CHUNK_SIZE;
-        size_t chunks_per_height = img.height / CHUNK_SIZE;
-        size_t chunk_count = chunks_per_width * chunks_per_height * 24;
-
-        chunks.resize(chunk_count * 8);
-        u8* out_ptr = chunks.data();
-
-        // start with the least significant bitplanes, { 23, 15, 7, 22, 14, 6 ... }
-        size_t bitplane_priority[24];
-        for (size_t i = 0, bp=23; i < 24; i++) {
-            bitplane_priority[i] = bp;
-            if (bp < 8)
-                bp += 15;
-            else
-                bp -= 8;
-        }
-
-        size_t const pixel_width_bytes = 4;
-        size_t const chunk_width_bytes = CHUNK_SIZE * pixel_width_bytes;
-        size_t image_width_bytes = img.width * pixel_width_bytes;
-
-        for (size_t i = 0; i < 24; i++) {
-            size_t bitplane_index = bitplane_priority[i];
-            for (size_t chunk_y = 0; chunk_y < chunks_per_height; chunk_y++) {
-                u8 const* pixel_ptr = img.pixel_data.data() + chunk_y * CHUNK_SIZE * image_width_bytes;
-                for (size_t chunk_x = 0; chunk_x < chunks_per_width; chunk_x++) {
-                    extract_bitplane_chunk(pixel_ptr, bitplane_index, image_width_bytes, out_ptr);
-                    out_ptr += CHUNK_SIZE;
-                    pixel_ptr += chunk_width_bytes;
+                for (size_t i = 0; i < 4; i++) {
+                    chunked_data.push_back(img.pixel_data[pixel_data_offset + i]);
                 }
             }
         }
-
-        return chunks;
     }
 
-    namespace test {
-        int count_bits_set(u8 byte) {
-            int count = 0;
-            for (int i = 0; i < 8; i++) {
-                u8 mask = 1 << i;
-                if (byte & mask) {
-                    count++;
+    return chunked_data;
+}
+
+void de_chunkify(Image& img, std::vector<u8> const& chunked_data) {
+    // taking advantage of integer division truncation
+    size_t chunks_in_width = img.width / 8;
+    size_t chunks_in_height = img.height / 8;
+    size_t usable_width = chunks_in_width * 8;
+    size_t usable_height = chunks_in_height * 8;
+
+    // assert(chunked_data.size == usable_width * usable_height * 4);
+
+    size_t chunked_data_offset = 0;
+    for (size_t chunk_index_y = 0; chunk_index_y < chunks_in_height; chunk_index_y++) {
+        size_t pixel_index_y_start = chunk_index_y * 8;
+        for (size_t chunk_index_x = 0; chunk_index_x < chunks_in_width; chunk_index_x++) {
+            size_t pixel_index_x = chunk_index_x * 8;
+            for (size_t pixel_index_y_offset = 0; pixel_index_y_offset < 8; pixel_index_y_offset++) {
+                size_t pixel_index_y = pixel_index_y_start + pixel_index_y_offset;
+                size_t pixel_data_offset = 4 * (pixel_index_y * img.width + pixel_index_x);
+
+                for (size_t i = 0; i < 4; i++) {
+                    img.pixel_data[pixel_data_offset + i] = chunked_data[chunked_data_offset];
+                    chunked_data_offset++;
                 }
             }
-            return count;
-        }
-
-        TEST(bcps_tests, count_bits_set) {
-            EXPECT_EQ(count_bits_set(0), 0);
-            EXPECT_EQ(count_bits_set(255), 8);
-            for (int i = 0; i < 8; i++) {
-                u8 byte = 1 << i;
-                EXPECT_EQ(count_bits_set(byte), 1);
-                EXPECT_EQ(count_bits_set((u8)(~byte)), 7);
-            }
-        }
-
-        TEST(bcps_tests, GrayCodes) {
-            using namespace ::bcps;
-            for (int i = 0; i < 256; i++) {
-                // subsequent gray codes should have exactly 1 bit difference
-                // so xoring them together should result in a byte with exactly
-                // 1 bit set
-                auto diff = pbc_to_cgc(i) ^ pbc_to_cgc(i+1);
-                EXPECT_EQ(count_bits_set(diff), 1);
-            }
-        }
-
-        u8 get_bit_by_index(u8 value, size_t bit_index) {
-            size_t shift = 7 - bit_index;
-            return (value >> shift) & 1;
-        }
-
-        TEST(bcps_tests, get_bit_by_index) {
-            u8 value = 0x55;
-            u8 vcomp = ~value;
-            for (size_t i = 0; i < 8; i++) {
-                EXPECT_EQ(get_bit_by_index(value, i), i % 2);
-                EXPECT_EQ(get_bit_by_index(vcomp, i), (i + 1) % 2);
-            }
-        }
-
-        TEST(bcps_tests, extract_bitplane_byte) {
-            u8 test_buffer[32];
-            for (int i = 0; i < 32; i++) {
-                test_buffer[i] = i;
-            }
-
-            std::vector<int> bits;
-            for (size_t i = 0; i < 32; i++) {
-                for (size_t j = 0; j < 8; j++) {
-                    int bit_value = get_bit_by_index(test_buffer[i], j);
-                    bits.push_back(bit_value);
-                }
-            }
-
-            using ::bcps::extract_bitplane_byte;
-            for (size_t i = 0; i < 32; i++) {
-                u8 expected_value = 0;
-                for (size_t j = 0; j < 8; j++) {
-                    expected_value <<= 1;
-                    expected_value |= bits[j * 32 + i];
-                }
-                EXPECT_EQ(extract_bitplane_byte(test_buffer, i), expected_value);
-            }
-        }
-
-        TEST(bcps_tests, insert_bitplane_byte) {
-            u8 random_buffer[32];
-            for (size_t i = 0; i < 32; i++) {
-                random_buffer[i] = rand();
-            }
-
-            u8 expected_values[32] = {
-                0b00000000, 0b00000000, 0b00000000, 0b00000000,
-                0b00000000, 0b00000000, 0b00000000, 0b00000000,
-                0b00000000, 0b00000000, 0b00000000, 0b00000000,
-                0b00000000, 0b00000000, 0b11111111, 0b11111111,
-                0b00000000, 0b11111111, 0b00000000, 0b11111111,
-                0b00001111, 0b00001111, 0b00001111, 0b00001111,
-                0b00110011, 0b00110011, 0b00110011, 0b00110011,
-                0b01010101, 0b01010101, 0b01010101, 0b01010101,
-            };
-
-            using ::bcps::insert_bitplane_byte;
-            for (size_t i = 0; i < 32; i++) {
-                insert_bitplane_byte(i, random_buffer, i);
-            }
-
-            for (size_t i = 0; i < 32; i++) {
-                EXPECT_EQ(random_buffer[i], expected_values[i]);
-            }
-        }
-
-        TEST(bcps_tests, extract_bitplane_chunk) {
-            using namespace ::bcps;
-            size_t const image_width = 9;
-            size_t const image_height = 9;
-            std::vector<u8> pixels;
-            pixels.resize(image_width * image_height * 4);
-            for (auto & e : pixels) {
-                e = rand();
-            }
-
-            size_t const num_values_to_insert = 64 * 4;
-            std::vector<u8> values_to_insert;
-            for (size_t i = 0; i < num_values_to_insert; i++) {
-                values_to_insert.push_back(rand());
-            }
-
-            for (size_t bitplane_index = 0, value_index = 0; bitplane_index < 32; bitplane_index++) {
-                for (size_t row_index = 0; row_index < 8; row_index++, value_index++) {
-                    u8* pixel_ptr = pixels.data() + row_index * image_width * 4;
-                    insert_bitplane_byte(values_to_insert[value_index], pixel_ptr, bitplane_index);
-                }
-            }
-
-            std::vector<u8> extracted_chunks;
-            extracted_chunks.resize(num_values_to_insert);
-            size_t stride = image_width * 4;
-            for (size_t bitplane_index = 0; bitplane_index < 32; bitplane_index++) {
-                u8* out_ptr = extracted_chunks.data() + bitplane_index * 8;
-                extract_bitplane_chunk(pixels.data(), bitplane_index, stride, out_ptr);
-            }
-
-            EXPECT_EQ(values_to_insert, extracted_chunks);
         }
     }
+}
+
+u8 binary_to_gray_code(u8 binary) {
+    return (binary >> 1) ^ binary;
+}
+
+u8 gray_code_to_binary(u8 gray_code) {
+    u8 temp = gray_code ^ (gray_code >> 4);
+    temp ^= (temp >> 2);
+    temp ^= (temp >> 1);
+    return temp;
+}
+
+void binary_to_gray_code_inplace(std::vector<u8>& vec) {
+    std::transform(vec.begin(), vec.end(), vec.begin(), binary_to_gray_code);
+}
+
+void gray_code_to_binary_inplace(std::vector<u8>& vec) {
+    std::transform(vec.begin(), vec.end(), vec.begin(), gray_code_to_binary);
+}
+
+u8 extract_bitplane_byte(u8 const* byte_ptr, size_t bitplane_index) {
+    u8 extracted_byte = 0;
+    byte_ptr += bitplane_index / 8;
+    size_t shift = 7 - (bitplane_index % 8);
+    for (size_t i = 0; i < 8; i++) {
+        u8 bit_value = (*byte_ptr >> shift) & 1;
+        extracted_byte = (extracted_byte << 1) | bit_value;
+        byte_ptr += 4;
+    }
+
+    return extracted_byte;
+}
+
+void insert_bitplane_byte(u8* byte_ptr, size_t bitplane_index, u8 inserted_byte) {
+    byte_ptr += bitplane_index / 8;
+    size_t shift = 7 - (bitplane_index % 8);
+    for (size_t i = 0; i < 8; i++) {
+        u8 bit_value = inserted_byte & (0x80 >> i);
+        if (bit_value) {
+            *byte_ptr = *byte_ptr | (0x80 >> shift);
+        } else {
+            *byte_ptr &= ~(0x80 >> shift);
+        }
+        byte_ptr += 4;
+    }
+}
+
+std::vector<u8> planify(std::vector<u8> const& vec) {
+    std::vector<u8> planified_vec;
+    planified_vec.resize(vec.size());
+
+    size_t num_chunks = vec.size() / 256;
+
+    size_t bit_index_out = 0;
+    for (size_t plane_index = 0; plane_index < 32; plane_index++) {
+        size_t channel_index = plane_index % 4;
+        size_t bit_index_in_channel = 7 - (plane_index / 4);
+
+        for (size_t chunk_index = 0; chunk_index < num_chunks; chunk_index++) {
+            size_t chunk_start_index = chunk_index * 256;
+            for (size_t pixel_index_in_chunk = 0; pixel_index_in_chunk < 64; pixel_index_in_chunk++) {
+                size_t byte_index_in = chunk_start_index + pixel_index_in_chunk * 4 + channel_index;
+                u8 bit_value = vec[byte_index_in] & (0x80 >> bit_index_in_channel);
+
+                size_t byte_index_out = bit_index_out / 8;
+                size_t bit_offset_out = bit_index_out % 8;
+
+                if (bit_value) {
+                    planified_vec[byte_index_out] |= (0x80 >> bit_offset_out);
+                } else {
+                    planified_vec[byte_index_out] &= ~(0x80 >> bit_offset_out);
+                }
+            }
+        }
+    }
+
+    return planified_vec;
 }

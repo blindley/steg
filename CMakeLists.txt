@@ -36,8 +36,10 @@ enable_testing()
 
 add_executable(
     steg_test
-    src/test_main.cpp
+    test/tests.cpp
+    src/image.cpp
     src/bcps.cpp
+    src/stb/stb.cpp
 )
 
 target_link_libraries(
