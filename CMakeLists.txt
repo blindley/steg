@@ -25,11 +25,6 @@ add_executable(steg
     src/stb/stb.cpp
 )
 
-target_link_libraries(
-    steg
-    GTest::gtest
-)
-
 add_subdirectory(tools)
 
 enable_testing()

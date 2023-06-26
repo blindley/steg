@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.26)
 
-project(refgen)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+project(tools)
 
 add_executable(refgen
     refgen.cpp
@@ -8,21 +11,15 @@ add_executable(refgen
     ../src/stb/stb.cpp
 )
 
-set_target_properties(refgen PROPERTIES
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED True
-)
-
-
-project(crop)
-
 add_executable(crop
     crop.cpp
     ../src/image.cpp
     ../src/stb/stb.cpp
 )
 
-set_target_properties(crop PROPERTIES
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED True
+add_executable(red
+    red.cpp
+    ../src/image.cpp
+    ../src/bcps.cpp
+    ../src/stb/stb.cpp
 )
