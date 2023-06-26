@@ -154,8 +154,10 @@ TEST(bcps, message_formatting) {
     auto recovered_message = unformat_message(formatted_message);
     ASSERT_EQ(message, recovered_message);
 
-    for (size_t i = 0; i < 256; i++) {
-        message[i] = rand() >> 7;
+    message.clear();
+
+    for (size_t i = 0; i < 4099; i++) {
+        message.push_back(rand() >> 7);
     }
 
     formatted_message = format_message_for_hiding(0.49, message);
