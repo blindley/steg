@@ -224,6 +224,8 @@ float measure_plane_chunk_complexity(u8 const* planed_data_chunk) {
 void hide_raw_bytes(float threshold, std::vector<u8>& planed_data, std::vector<u8> const& raw_bytes) {
     size_t rb_offset = 0;
     for (size_t pd_offset = 0; pd_offset < planed_data.size(); pd_offset += 8) {
+        if (rb_offset >= raw_bytes.size())
+            break;
         auto pd_ptr = planed_data.data() + pd_offset;
         auto complexity = measure_plane_chunk_complexity(pd_ptr);
         if (complexity >= threshold) {
@@ -349,5 +351,19 @@ std::vector<u8> unformat_message(std::vector<u8> formatted_data) {
         }
     }
 
+    return message;
+}
+
+void hide_message(float threshold, Image& img, std::vector<u8> const& message) {
+    auto formatted_data = format_message_for_hiding(threshold, message);
+    auto planed_data = chunk_and_planify(img);
+    hide_raw_bytes(threshold, planed_data, formatted_data);
+    de_chunk_and_planify(img, planed_data);
+}
+
+std::vector<u8> unhide_message(float threshold, Image const& img) {
+    auto planed_data = chunk_and_planify(img);
+    auto formatted_data = unhide_raw_bytes(threshold, planed_data);
+    auto message = unformat_message(formatted_data);
     return message;
 }

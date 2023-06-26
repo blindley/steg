@@ -127,7 +127,7 @@ TEST(bcps, bitplane_bytes) {
 TEST(bpcs, planify) {
     std::vector<u8> data;
     for (int i = 0; i < 4096; i++) {
-        data.push_back(rand() >> 7);
+        data.push_back(std::rand() >> 7);
     }
 
     auto planed_data = planify(data);
@@ -157,10 +157,44 @@ TEST(bcps, message_formatting) {
     message.clear();
 
     for (size_t i = 0; i < 4099; i++) {
-        message.push_back(rand() >> 7);
+        message.push_back(std::rand() >> 7);
     }
 
     formatted_message = format_message_for_hiding(0.49, message);
     recovered_message = unformat_message(formatted_message);
     ASSERT_EQ(message, recovered_message);
+}
+
+TEST(bcps, message_hiding) {
+    std::vector<u8> message;
+    for (size_t i = 0; i < 511; i++) {
+        message.push_back(std::rand() >> 7);
+    }
+
+    Image img = {};
+    img.width = 257;
+    img.height = 135;
+    img.pixel_data.resize(img.width * img.height * 4);
+    for (size_t chunk_start_y = 0; chunk_start_y + 8 <= img.height; chunk_start_y += 8) {
+        for (size_t chunk_start_x = 0; chunk_start_x + 8 <= img.width; chunk_start_x += 8) {
+            float p = (float)rand() / (float)RAND_MAX;
+            if (p < 0.5) {
+                for (size_t y_off = 0; y_off < 8; y_off++) {
+                    for (size_t x_off = 0; x_off < 8; x_off++) {
+                        size_t pixel_data_offset = (chunk_start_y + y_off) * img.width * 4
+                            + x_off * 4;
+                        for (size_t i = 0; i < 4; i++) {
+                            size_t offset = pixel_data_offset + i;
+                            img.pixel_data[offset] = std::rand() >> 7;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    hide_message(0.3, img, message);
+    auto extracted_message = unhide_message(0.3, img);
+
+    ASSERT_EQ(message, extracted_message);
 }

@@ -17,5 +17,7 @@ std::vector<u8> planify(std::vector<u8> const& data);
 std::vector<u8> de_planify(std::vector<u8> const& planed_data);
 std::vector<u8> format_message_for_hiding(float threshold, std::vector<u8> const& message);
 std::vector<u8> unformat_message(std::vector<u8> formatted_data);
+void hide_message(float threshold, Image& img, std::vector<u8> const& message);
+std::vector<u8> unhide_message(float threshold, Image const& img);
 
 #endif // BCPS_TEST_202306250729
