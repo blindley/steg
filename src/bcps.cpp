@@ -354,14 +354,14 @@ std::vector<u8> unformat_message(std::vector<u8> formatted_data) {
     return message;
 }
 
-void hide_message(float threshold, Image& img, std::vector<u8> const& message) {
+void bcps_hide_message(float threshold, Image& img, std::vector<u8> const& message) {
     auto formatted_data = format_message_for_hiding(threshold, message);
     auto planed_data = chunk_and_planify(img);
     hide_raw_bytes(threshold, planed_data, formatted_data);
     de_chunk_and_planify(img, planed_data);
 }
 
-std::vector<u8> unhide_message(float threshold, Image const& img) {
+std::vector<u8> bcps_unhide_message(float threshold, Image const& img) {
     auto planed_data = chunk_and_planify(img);
     auto formatted_data = unhide_raw_bytes(threshold, planed_data);
     auto message = unformat_message(formatted_data);

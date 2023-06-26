@@ -193,8 +193,8 @@ TEST(bcps, message_hiding) {
         }
     }
 
-    hide_message(0.3, img, message);
-    auto extracted_message = unhide_message(0.3, img);
+    bcps_hide_message(0.3, img, message);
+    auto extracted_message = bcps_unhide_message(0.3, img);
 
     ASSERT_EQ(message, extracted_message);
 }
