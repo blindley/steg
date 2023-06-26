@@ -138,3 +138,27 @@ TEST(bpcs, planify) {
 
     ASSERT_EQ(data, de_planed_data);
 }
+
+TEST(bcps, message_formatting) {
+    std::vector<u8> message;
+    for (size_t i = 0; i < 256; i++) {
+        message.push_back(i);
+    }
+
+    auto formatted_message = format_message_for_hiding(0.0, message);
+    ASSERT_EQ(formatted_message.size(), 272);
+    for (size_t i = 0; i < 7; i++) {
+        ASSERT_EQ(formatted_message[57 + i], 52 + i);
+    }
+
+    auto recovered_message = unformat_message(formatted_message);
+    ASSERT_EQ(message, recovered_message);
+
+    for (size_t i = 0; i < 256; i++) {
+        message[i] = rand() >> 7;
+    }
+
+    formatted_message = format_message_for_hiding(0.49, message);
+    recovered_message = unformat_message(formatted_message);
+    ASSERT_EQ(message, recovered_message);
+}

@@ -4,6 +4,8 @@
 #include <vector>
 #include <cstdlib>
 #include <algorithm>
+#include <format>
+#include <string>
 
 std::vector<u8> chunkify(Image const& img) {
     // taking advantage of integer division truncation
@@ -217,4 +219,135 @@ float measure_plane_chunk_complexity(u8 const* planed_data_chunk) {
     */
     size_t const max_bit_transitions = 2 * 7 * 8;
     return (float)total_bit_transitions / (float)max_bit_transitions;
+}
+
+void hide_raw_bytes(float threshold, std::vector<u8>& planed_data, std::vector<u8> const& raw_bytes) {
+    size_t rb_offset = 0;
+    for (size_t pd_offset = 0; pd_offset < planed_data.size(); pd_offset += 8) {
+        auto pd_ptr = planed_data.data() + pd_offset;
+        auto complexity = measure_plane_chunk_complexity(pd_ptr);
+        if (complexity >= threshold) {
+            auto rb_ptr = raw_bytes.data() + rb_offset;
+            std::memcpy(pd_ptr, rb_ptr, 8);
+            rb_offset += 8;
+        }
+    }
+
+    if (rb_offset < raw_bytes.size()) {
+        throw std::format("max hiding capacity ({} bytes) exceeded", rb_offset);
+    }
+}
+
+std::vector<u8> unhide_raw_bytes(float threshold, std::vector<u8> const& planed_data) {
+    std::vector<u8> raw_bytes;
+    for (size_t pd_offset = 0; pd_offset < planed_data.size(); pd_offset += 8) {
+        auto pd_ptr = planed_data.data() + pd_offset;
+        auto complexity = measure_plane_chunk_complexity(pd_ptr);
+        if (complexity >= threshold) {
+            raw_bytes.insert(raw_bytes.end(), pd_ptr, pd_ptr + 8);
+        }
+    }
+
+    return raw_bytes;
+}
+
+u8 get_bit(u8 const* data, size_t bit_index) {
+    size_t byte_index = bit_index / 8;
+    size_t shift = 7 - (bit_index % 8);
+    return (data[byte_index] >> shift) & 1;
+}
+
+void set_bit(u8* data, size_t bit_index, u8 bit_value) {
+    size_t byte_index = bit_index / 8;
+    size_t shift = bit_index % 8;
+    if (bit_value) {
+        data[byte_index] |= (0x80 >> shift);
+    } else {
+        data[byte_index] &= ~(0x80 >> shift);
+    }
+}
+
+void invert_plane_chunk(u8* data) {
+    for (size_t i = 0; i < 4; i++) {
+        data[i * 2] ^= 0xAA;
+        data[i * 2 + 1] ^= 0x55;
+    }
+}
+
+void make_all_chunks_complex(float threshold, std::vector<u8>& formatted_data) {
+    for (size_t i = 0; i < formatted_data.size(); i += 8) {
+        auto fdata_ptr = formatted_data.data() + i;
+        auto complexity = measure_plane_chunk_complexity(fdata_ptr);
+        if (complexity < threshold) {
+            invert_plane_chunk(fdata_ptr);
+        }
+    }
+}
+
+void restore_complexified_chunks(std::vector<u8>& formatted_data) {
+    for (size_t i = 0; i < formatted_data.size(); i += 8) {
+        auto fdata_ptr = formatted_data.data() + i;
+        if ((fdata_ptr[0] & 0x80) == 0x80) {
+            invert_plane_chunk(fdata_ptr);
+        }
+    }
+}
+
+std::vector<u8> format_message_for_hiding(float threshold, std::vector<u8> const& message) {
+    size_t formatted_size = (message.size() * 8 + 32 + 62) / 63 * 8;
+    std::vector<u8> formatted_data(formatted_size);
+
+    size_t out_bit_index = 0;
+    size_t in_bit_index = 0;
+
+    u32 message_size = message.size();
+
+    set_bit(formatted_data.data(), out_bit_index++, 0);
+    for (size_t i = 0; i < 32; i++) {
+        u8 bit_value = (message_size >> (31 - i)) & 1;
+        set_bit(formatted_data.data(), out_bit_index++, bit_value);
+    }
+
+    for (size_t i = 0; i < message_size * 8; i++) {
+        if (out_bit_index % 64 == 0) {
+            set_bit(formatted_data.data(), out_bit_index++, 0);
+        }
+
+        auto bit_value = get_bit(message.data(), in_bit_index++);
+        set_bit(formatted_data.data(), out_bit_index++, bit_value);
+    }
+
+    make_all_chunks_complex(threshold, formatted_data);
+
+    return formatted_data;
+}
+
+// here we take formatted_data by value because we need a non-const copy of it
+std::vector<u8> unformat_message(std::vector<u8> formatted_data) {
+    restore_complexified_chunks(formatted_data);
+
+    size_t out_bit_index = 0;
+    size_t in_bit_index = 1;
+
+    u32 message_size = 0;
+
+    for (size_t i = 0; i < 32; i++) {
+        message_size <<= 1;
+        auto bit_value = get_bit(formatted_data.data(), in_bit_index++);
+        message_size |= bit_value;
+    }
+
+    std::vector<u8> message;
+    message.resize(message_size);
+
+    while (out_bit_index < message_size * 8) {
+        if (in_bit_index % 64 == 0) {
+            in_bit_index++;
+        } else {
+            auto bit_value = get_bit(formatted_data.data(), in_bit_index++);
+            set_bit(message.data(), out_bit_index++, bit_value);
+        }
+    }
+
+    return message;
 }
