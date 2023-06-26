@@ -23,3 +23,10 @@ add_executable(red
     ../src/bcps.cpp
     ../src/stb/stb.cpp
 )
+
+add_executable(demolish
+    demolish.cpp
+    ../src/image.cpp
+    ../src/bcps.cpp
+    ../src/stb/stb.cpp
+)

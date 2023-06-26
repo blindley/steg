@@ -163,3 +163,58 @@ void de_chunk_and_planify(Image& img, std::vector<u8> const& planed_data) {
     gray_code_to_binary_inplace(chunked_data);
     de_chunkify(img, chunked_data);
 }
+
+size_t count_bit_transitions(u8 byte) {
+    size_t count = 0;
+    u8 prev_bit = byte & 1;
+    for (size_t i = 0; i < 7; i++) {
+        byte >>= 1;
+        u8 this_bit = byte & 1;
+        count += (this_bit ^ prev_bit);
+        prev_bit = this_bit;
+    }
+    return count;
+}
+
+u8 extract_vertical_byte(u8 const* planed_data_chunk, size_t bit_index) {
+    u8 byte = 0;
+    size_t shift = 7 - bit_index;
+    for (size_t i = 0; i < 8; i++) {
+        byte <<= 1;
+        byte |= ((planed_data_chunk[i] >> shift) & 1);
+    }
+    return byte;
+}
+
+size_t count_vertical_bit_transitions(u8 const* planed_data_chunk, size_t bit_index) {
+    u8 byte = extract_vertical_byte(planed_data_chunk, bit_index);
+    return count_bit_transitions(byte);
+}
+
+size_t count_horizontal_bit_transitions(u8 const* planed_data_chunk) {
+    size_t count = 0;
+    for (size_t i = 0; i < 8; i++) {
+        count += count_bit_transitions(planed_data_chunk[i]);
+    }
+    return count;
+}
+
+size_t count_vertical_bit_transitions(u8 const* planed_data_chunk) {
+    size_t count = 0;
+    for (size_t i = 0; i < 8; i++) {
+        count += count_vertical_bit_transitions(planed_data_chunk, i);
+    }
+    return count;
+}
+
+float measure_plane_chunk_complexity(u8 const* planed_data_chunk) {
+    size_t total_bit_transitions =
+        count_horizontal_bit_transitions(planed_data_chunk) +
+        count_vertical_bit_transitions(planed_data_chunk);
+    /* There are 7 possible transitions in a sequence of 8 bits. A plane chunk
+        has 8 rows of 8 bits. So there are 7 * 8 possible horizontal transitions,
+        and 7 * 8 possible vertical transitions
+    */
+    size_t const max_bit_transitions = 2 * 7 * 8;
+    return (float)total_bit_transitions / (float)max_bit_transitions;
+}
