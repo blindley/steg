@@ -128,13 +128,21 @@ void insert_bitplane(u8* data_ptr, size_t bitplane_index, u8 const* planed_data_
     }
 }
 
+size_t const bitplane_priority[] = {
+    7, 15, 23, 31, 6, 14, 22, 30,
+    5, 13, 21, 29, 4, 12, 20, 28,
+    3, 11, 19, 27, 2, 10, 18, 26,
+    1, 9, 17, 25, 0, 8, 16, 24
+};
+
 std::vector<u8> planify(std::vector<u8> const& data) {
     std::vector<u8> planed_data(data.size());
 
     size_t bytes_per_plane = data.size() / 32;
 
-    for (size_t bitplane_index = 0; bitplane_index < 32; bitplane_index++) {
-        u8* planed_data_ptr = planed_data.data() + bitplane_index * bytes_per_plane;
+    for (size_t i = 0; i < 32; i++) {
+        auto bitplane_index = bitplane_priority[i];
+        u8* planed_data_ptr = planed_data.data() + i * bytes_per_plane;
         extract_bitplane(data.data(), bitplane_index, planed_data_ptr, bytes_per_plane);
     }
 
@@ -146,8 +154,9 @@ std::vector<u8> de_planify(std::vector<u8> const& planed_data) {
 
     size_t bytes_per_plane = data.size() / 32;
 
-    for (size_t bitplane_index = 0; bitplane_index < 32; bitplane_index++) {
-        u8 const* planed_data_ptr = planed_data.data() + bitplane_index * bytes_per_plane;
+    for (size_t i = 0; i < 32; i++) {
+        auto bitplane_index = bitplane_priority[i];
+        u8 const* planed_data_ptr = planed_data.data() + i * bytes_per_plane;
         insert_bitplane(data.data(), bitplane_index, planed_data_ptr, bytes_per_plane);;
     }
 
@@ -276,7 +285,7 @@ void invert_plane_chunk(u8* data) {
     }
 }
 
-void make_all_chunks_complex(float threshold, std::vector<u8>& formatted_data) {
+void conjugate_data(float threshold, std::vector<u8>& formatted_data) {
     for (size_t i = 0; i < formatted_data.size(); i += 8) {
         auto fdata_ptr = formatted_data.data() + i;
         auto complexity = measure_plane_chunk_complexity(fdata_ptr);
@@ -286,7 +295,7 @@ void make_all_chunks_complex(float threshold, std::vector<u8>& formatted_data) {
     }
 }
 
-void restore_complexified_chunks(std::vector<u8>& formatted_data) {
+void de_conjugate_data(std::vector<u8>& formatted_data) {
     for (size_t i = 0; i < formatted_data.size(); i += 8) {
         auto fdata_ptr = formatted_data.data() + i;
         if ((fdata_ptr[0] & 0x80) == 0x80) {
@@ -319,14 +328,14 @@ std::vector<u8> format_message_for_hiding(float threshold, std::vector<u8> const
         set_bit(formatted_data.data(), out_bit_index++, bit_value);
     }
 
-    make_all_chunks_complex(threshold, formatted_data);
+    conjugate_data(threshold, formatted_data);
 
     return formatted_data;
 }
 
 // here we take formatted_data by value because we need a non-const copy of it
 std::vector<u8> unformat_message(std::vector<u8> formatted_data) {
-    restore_complexified_chunks(formatted_data);
+    de_conjugate_data(formatted_data);
 
     size_t out_bit_index = 0;
     size_t in_bit_index = 1;
