@@ -2,6 +2,7 @@
 #include "image.h"
 #include "steg.h"
 #include "utility.h"
+#include "bpcs.h"
 
 #include <iostream>
 #include <vector>
@@ -75,6 +76,10 @@ void main_impl(int argc, char** argv) {
 
         std::cout << "extracted " << extracted_message.size() << " bytes to "
             << args.output_file << '\n';
+    } else if (args.measure) {
+        auto cover_file = Image::load(args.cover_file);
+        auto capacity = measure_capacity(0.3, cover_file);
+        std::cout << capacity << '\n';
     } else {
         throw "you shouldn't be here!";
     }
@@ -83,7 +88,8 @@ void main_impl(int argc, char** argv) {
 void print_usage(char const* exe_name) {
     std::cout << "Usage:\n";
     std::cout << "    " << exe_name << " --hide -m <message file> -c <coverfile> [-o <stego file>]\n";
-    std::cout << "    " << exe_name << " --extract -s <stego file> [-o <message file]\n";
+    std::cout << "    " << exe_name << " --extract -s <stego file> [-o <message file>]\n";
+    std::cout << "    " << exe_name << " --measure -c <cover file>\n";
 }
 
 void save_file(std::string const& filename, u8 const* data, size_t len) {

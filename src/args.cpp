@@ -11,6 +11,7 @@ void debug_print(std::ostream& ostr, Args const& args) {
     ostr << "Args { ";
     ostr << std::format("extract={} ", args.extract);
     ostr << std::format("hide={} ", args.hide);
+    ostr << std::format("measure={} ", args.measure);
     ostr << std::format("message_file=\"{}\" ", args.message_file);
     ostr << std::format("cover_file=\"{}\" ", args.cover_file);
     ostr << std::format("stego_file=\"{}\" ", args.stego_file);
@@ -24,7 +25,7 @@ Args parse_args(int argc, char** argv) {
     std::vector<std::string> arg_vec(argv, argv + argc);
 
     std::unordered_map<std::string, std::string> args_map;
-    std::string boolean_arg_list[] = {"--hide", "--extract"};
+    std::string boolean_arg_list[] = {"--hide", "--extract", "--measure"};
     std::string args_with_args[] = {"-m", "-c", "-s", "-o"};
 
     for (size_t i = 1; i < argc; i++) {
@@ -49,45 +50,62 @@ Args parse_args(int argc, char** argv) {
 
     args.hide = args_map.contains("--hide");
     args.extract = args_map.contains("--extract");
+    args.measure = args_map.contains("--measure");
     args.message_file = args_map["-m"];
     args.cover_file = args_map["-c"];
     args.stego_file = args_map["-s"];
     args.output_file = args_map["-o"];
 
-    if (!args.hide && !args.extract) {
+    if (!args.hide && !args.extract && !args.measure) {
         throw "No mode selected";
     }
 
-    if (args.hide && args.extract) {
-        throw "Mode --hide not compatible with mode --extract";
-    }
-
     if (args.hide) {
-        if (args.message_file.empty()) {
-            throw "Missing '-m' argument";
-        }
-
-        if (args.cover_file.empty()) {
-            throw "Missing '-c'";
-        }
-
-        if (!args.stego_file.empty()) {
-            throw "Unexpected argument '-s' in hide mode";
-        }
+        if (args.extract)
+            throw "Mode --hide not compatible with mode --extract";
+        if (args.measure)
+            throw "Mode --hide not compatible with mode --measure";
     }
 
     if (args.extract) {
-        if (args.stego_file.empty()) {
+        if (args.measure)
+            throw "Mode --extract not compatible with mode --measure";
+    }
+
+    if (args.hide) {
+        if (args.message_file.empty())
+            throw "Missing '-m' argument";
+
+        if (args.cover_file.empty())
+            throw "Missing '-c'";
+
+        if (!args.stego_file.empty())
+            throw "Unexpected argument '-s' in hide mode";
+    }
+
+    if (args.extract) {
+        if (args.stego_file.empty())
             throw "Missing '-s' argument";
-        }
 
-        if (!args.message_file.empty()) {
+        if (!args.message_file.empty())
             throw "Unexpected argument '-m' in extract mode";
-        }
 
-        if (!args.cover_file.empty()) {
+        if (!args.cover_file.empty())
             throw "Unexpected argument '-c' in extract mode";
-        }
+    }
+
+    if (args.measure) {
+        if (args.cover_file.empty())
+            throw "Missing '-c' argument";
+
+        if (!args.message_file.empty())
+            throw "Unexpected argument '-m' in measure mode";
+
+        if (!args.stego_file.empty())
+            throw "Unexpected argument '-s' in measure mode";
+
+        if (!args.output_file.empty())
+            throw "Unexpected argument '-o' in measure mode";
     }
 
     return args;

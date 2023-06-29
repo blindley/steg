@@ -282,3 +282,18 @@ std::vector<u8> bpcs_unhide_message(float threshold, Image& img) {
     auto message = unformat_message(formatted_data);
     return message;
 }
+
+size_t measure_capacity(float threshold, Image& img) {
+    auto cover = chunkify(img);
+
+    size_t complex_chunk_count = 0;
+    for (auto& cover_chunk : cover) {
+        auto complexity = measure_plane_chunk_complexity(cover_chunk);
+        if (complexity >= threshold) {
+            complex_chunk_count++;
+        }
+    }
+
+    size_t bit_count = complex_chunk_count * 63 - 32;
+    return bit_count / 8;
+}
