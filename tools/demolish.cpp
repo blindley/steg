@@ -32,7 +32,7 @@ void demolish_plane_chunk(DataChunk& chunk) {
 void demolish_cat(std::string outfile, float complexity_threshold) {
     auto img = Image::load("data/orange-cat-plus-purple.png");
 
-    auto planed_data = chunk_and_planify(img);
+    auto planed_data = chunkify(img);
 
     size_t bytes_written = 0;
     for (auto& chunk : planed_data) {
@@ -43,7 +43,7 @@ void demolish_cat(std::string outfile, float complexity_threshold) {
         }
     }
 
-    de_chunk_and_planify(img, planed_data);
+    de_chunkify(img, planed_data);
     img.save(outfile);
     auto trans_count = count_transparent_pixels(img);
     std::cout << outfile << " has " << trans_count << " transparent pixels\n";

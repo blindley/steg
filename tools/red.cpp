@@ -11,11 +11,11 @@ int main() {
 
     auto img = Image::load("data/orange-cat-plus-purple.png");
 
-    auto planed_data = chunk_and_planify(img);
+    auto planed_data = chunkify(img);
 
     std::cout << "planed_data.chunks.size() == " << planed_data.chunks.size() << '\n';
 
-    de_chunk_and_planify(img, planed_data);
+    de_chunkify(img, planed_data);
     img.save("data/red/exact-copy.png");
 
     auto no_red = planed_data;
@@ -23,7 +23,7 @@ int main() {
     for (size_t i = 0; i < planed_data.chunks.size() / 4; i++) {
         std::memset(no_red.chunks[i].bytes, 0, 8);
     }
-    de_chunk_and_planify(img, no_red);
+    de_chunkify(img, no_red);
     img.save("data/red/no-red.png");
 
     auto no_green = planed_data;
@@ -31,7 +31,7 @@ int main() {
     for (size_t i = 0; i < planed_data.chunks.size() / 4; i++) {
         no_green.chunks[offset + i] = {};
     }
-    de_chunk_and_planify(img, no_green);
+    de_chunkify(img, no_green);
     img.save("data/red/no-green.png");
 
     auto no_blue = planed_data;
@@ -39,7 +39,7 @@ int main() {
     for (size_t i = 0; i < planed_data.chunks.size() / 4; i++) {
         no_blue.chunks[offset + i] = {};
     }
-    de_chunk_and_planify(img, no_blue);
+    de_chunkify(img, no_blue);
     img.save("data/red/no-blue.png");
 
     auto so_red = planed_data;
@@ -51,7 +51,7 @@ int main() {
         else
             so_red.chunks[offset + i] = {};
     }
-    de_chunk_and_planify(img, so_red);
+    de_chunkify(img, so_red);
     img.save("data/red/so-red.png");
 }
 

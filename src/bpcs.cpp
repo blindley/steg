@@ -54,7 +54,7 @@ void gray_code_to_binary_inplace(std::vector<u8>& vec) {
     std::transform(vec.begin(), vec.end(), vec.begin(), gray_code_to_binary);
 }
 
-DataChunkArray chunkify_all_at_once(Image& img) {
+DataChunkArray chunkify(Image& img) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t usable_width = chunks_in_width * 8;
@@ -92,7 +92,7 @@ DataChunkArray chunkify_all_at_once(Image& img) {
     return planed_data;
 }
 
-void re_chunk_that_b(Image& img, DataChunkArray const& planed_data) {
+void de_chunkify(Image& img, DataChunkArray const& planed_data) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t usable_width = chunks_in_width * 8;
@@ -124,151 +124,6 @@ void re_chunk_that_b(Image& img, DataChunkArray const& planed_data) {
     }
 
     gray_code_to_binary_inplace(img.pixel_data);
-}
-
-std::vector<u8> chunkify(Image const& img) {
-    // taking advantage of integer division truncation
-    size_t chunks_in_width = img.width / 8;
-    size_t chunks_in_height = img.height / 8;
-    size_t usable_width = chunks_in_width * 8;
-    size_t usable_height = chunks_in_height * 8;
-
-    std::vector<u8> chunked_data;
-    chunked_data.reserve(usable_width * usable_height * 4);
-
-    for (size_t chunk_index_y = 0; chunk_index_y < chunks_in_height; chunk_index_y++) {
-        size_t pixel_index_y_start = chunk_index_y * 8;
-        for (size_t chunk_index_x = 0; chunk_index_x < chunks_in_width; chunk_index_x++) {
-            size_t pixel_index_x = chunk_index_x * 8;
-            for (size_t pixel_index_y_offset = 0; pixel_index_y_offset < 8; pixel_index_y_offset++) {
-                size_t pixel_index_y = pixel_index_y_start + pixel_index_y_offset;
-                size_t pixel_data_offset = 4 * (pixel_index_y * img.width + pixel_index_x);
-
-                for (size_t i = 0; i < 32; i++) {
-                    chunked_data.push_back(img.pixel_data[pixel_data_offset + i]);
-                }
-            }
-        }
-    }
-
-    return chunked_data;
-}
-
-void de_chunkify(Image& img, std::vector<u8> const& chunked_data) {
-    // taking advantage of integer division truncation
-    size_t chunks_in_width = img.width / 8;
-    size_t chunks_in_height = img.height / 8;
-    size_t usable_width = chunks_in_width * 8;
-    size_t usable_height = chunks_in_height * 8;
-
-    // assert(chunked_data.size == usable_width * usable_height * 4);
-
-    size_t chunked_data_offset = 0;
-    for (size_t chunk_index_y = 0; chunk_index_y < chunks_in_height; chunk_index_y++) {
-        size_t pixel_index_y_start = chunk_index_y * 8;
-        for (size_t chunk_index_x = 0; chunk_index_x < chunks_in_width; chunk_index_x++) {
-            size_t pixel_index_x = chunk_index_x * 8;
-            for (size_t pixel_index_y_offset = 0; pixel_index_y_offset < 8; pixel_index_y_offset++) {
-                size_t pixel_index_y = pixel_index_y_start + pixel_index_y_offset;
-                size_t pixel_data_offset = 4 * (pixel_index_y * img.width + pixel_index_x);
-
-                for (size_t i = 0; i < 32; i++) {
-                    img.pixel_data[pixel_data_offset + i] = chunked_data[chunked_data_offset];
-                    chunked_data_offset++;
-                }
-            }
-        }
-    }
-}
-
-u8 extract_bitplane_byte(u8 const* byte_ptr, size_t bitplane_index) {
-    u8 extracted_byte = 0;
-    byte_ptr += bitplane_index / 8;
-    size_t shift = 7 - (bitplane_index % 8);
-    for (size_t i = 0; i < 8; i++) {
-        u8 bit_value = (*byte_ptr >> shift) & 1;
-        extracted_byte = (extracted_byte << 1) | bit_value;
-        byte_ptr += 4;
-    }
-
-    return extracted_byte;
-}
-
-void insert_bitplane_byte(u8* byte_ptr, size_t bitplane_index, u8 inserted_byte) {
-    byte_ptr += bitplane_index / 8;
-    size_t shift = bitplane_index % 8;
-    for (size_t i = 0; i < 8; i++) {
-        u8 bit_value = inserted_byte & (0x80 >> i);
-        if (bit_value) {
-            *byte_ptr = *byte_ptr | (0x80 >> shift);
-        } else {
-            *byte_ptr &= ~(0x80 >> shift);
-        }
-        byte_ptr += 4;
-    }
-}
-
-void extract_bitplane(u8 const* data_ptr, size_t bitplane_index, u8* planed_data_ptr,
-    size_t planed_data_byte_count)
-{
-    for (size_t i = 0; i < planed_data_byte_count; i++) {
-        *planed_data_ptr = extract_bitplane_byte(data_ptr, bitplane_index);
-        planed_data_ptr++;
-        data_ptr += 32;
-    }
-}
-
-void insert_bitplane(u8* data_ptr, size_t bitplane_index, u8 const* planed_data_ptr,
-    size_t planed_data_byte_count)
-{
-    for (size_t i = 0; i < planed_data_byte_count; i++) {
-        insert_bitplane_byte(data_ptr, bitplane_index, *planed_data_ptr);
-        planed_data_ptr++;
-        data_ptr += 32;
-    }
-}
-
-DataChunkArray planify(std::vector<u8> const& data) {
-    DataChunkArray planed_data;
-    planed_data.chunks.resize(data.size() / 8);
-
-    size_t bytes_per_plane = data.size() / 32;
-    auto pd_ptr = planed_data.bytes_begin();
-
-    for (size_t i = 0; i < 32; i++) {
-        auto bitplane_index = bitplane_priority[i];
-        extract_bitplane(data.data(), bitplane_index, pd_ptr, bytes_per_plane);
-        pd_ptr += bytes_per_plane;
-    }
-
-    return planed_data;
-}
-
-std::vector<u8> de_planify(DataChunkArray const& planed_data) {
-    std::vector<u8> data(planed_data.chunks.size() * 8);
-
-    size_t bytes_per_plane = data.size() / 32;
-    auto pd_ptr = planed_data.bytes_begin();
-
-    for (size_t i = 0; i < 32; i++) {
-        auto bitplane_index = bitplane_priority[i];
-        insert_bitplane(data.data(), bitplane_index, pd_ptr, bytes_per_plane);
-        pd_ptr += bytes_per_plane;
-    }
-
-    return data;
-}
-
-DataChunkArray chunk_and_planify(Image const& img) {
-    auto chunked_data = chunkify(img);
-    binary_to_gray_code_inplace(chunked_data);
-    return planify(chunked_data);
-}
-
-void de_chunk_and_planify(Image& img, DataChunkArray const& planed_data) {
-    auto chunked_data = de_planify(planed_data);
-    gray_code_to_binary_inplace(chunked_data);
-    de_chunkify(img, chunked_data);
 }
 
 size_t count_bit_transitions(u8 byte) {
@@ -416,14 +271,14 @@ std::vector<u8> unformat_message(DataChunkArray formatted_data) {
 
 void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message) {
     auto formatted_data = format_message_for_hiding(threshold, message);
-    auto planed_image = chunk_and_planify(img);
-    hide_raw_bytes(threshold, planed_image, formatted_data);
-    de_chunk_and_planify(img, planed_image);
+    auto planed_data = chunkify(img);
+    hide_raw_bytes(threshold, planed_data, formatted_data);
+    de_chunkify(img, planed_data);
 }
 
-std::vector<u8> bpcs_unhide_message(float threshold, Image const& img) {
-    auto planed_image = chunk_and_planify(img);
-    auto formatted_data = unhide_raw_bytes(threshold, planed_image);
+std::vector<u8> bpcs_unhide_message(float threshold, Image& img) {
+    auto planed_data = chunkify(img);
+    auto formatted_data = unhide_raw_bytes(threshold, planed_data);
     auto message = unformat_message(formatted_data);
     return message;
 }
