@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <cstdlib>
+#include <array>
+#include <random>
 
 #include "../src/utility.h"
 #include "../src/image.h"
@@ -132,36 +134,159 @@ TEST(bpcs, planify) {
 
     auto planed_data = planify(data);
 
-    ASSERT_NE(data, planed_data);
-
     auto de_planed_data = de_planify(planed_data);
 
     ASSERT_EQ(data, de_planed_data);
 }
 
+TEST(bcps, measure_complexity) {
+    DataChunk chunk = {};
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.0f);
+
+    std::memset(chunk.bytes, 0xFF, 8);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.0f);
+
+    std::memset(chunk.bytes, 0xAA, 8);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+
+    std::memset(chunk.bytes, 0x55, 8);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+
+    std::memset(chunk.bytes, 0xCC, 8);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 24.0f/112.0f);
+
+    std::memset(chunk.bytes, 0x33, 8);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 24.0f/112.0f);
+
+    auto alt_fill = [&](u8 a, u8 b) {
+        for (size_t i = 0; i < 4; i++) {
+            size_t index = i * 2;
+            chunk.bytes[index] = a;
+            chunk.bytes[index + 1] = b;
+        }
+    };
+
+    alt_fill(0x55, 0xAA);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 1.0f);
+
+    alt_fill(0xAA, 0x55);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 1.0f);
+
+    alt_fill(0, 0xFF);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+
+    alt_fill(0xFF, 0);
+    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+}
+
+TEST(bcps, set_bit) {
+    using array3 = std::array<u8, 3>;
+
+    array3 a = {};
+    for (size_t i = 0; i < 24; i++) {
+        ASSERT_EQ(get_bit(a.data(), i), 0);
+    }
+
+    a = { 0xFF, 0xFF, 0xFF };
+    for (size_t i = 0; i < 24; i++) {
+        ASSERT_EQ(get_bit(a.data(), i), 1);
+    }
+
+    for (size_t i = 0; i < 24; i++) {
+        a = {0, 0, 0};
+        set_bit(a.data(), i, 1);
+        for (size_t j = 0; j < 24; j++) {
+            if (i == j) {
+                ASSERT_EQ(get_bit(a.data(), j), 1);
+            } else {
+                ASSERT_EQ(get_bit(a.data(), j), 0);
+            }
+        }
+    }
+
+    for (size_t i = 0; i < 24; i++) {
+        a = { 0xFF, 0xFF, 0xFF };
+        set_bit(a.data(), i, 0);
+        for (size_t j = 0; j < 24; j++) {
+            if (i == j) {
+                ASSERT_EQ(get_bit(a.data(), j), 0);
+            } else {
+                ASSERT_EQ(get_bit(a.data(), j), 1);
+            }
+        }
+    }
+}
+
+void randomize_chunk(std::mt19937_64& rng, DataChunk& chunk) {
+    for (size_t i = 0; i < 8; i++) {
+        auto value = rng();
+        std::memcpy(chunk.bytes, &value, 8);
+    }
+}
+
+TEST(bcps, conjugate_complexity) {
+    // test if the complexity of a chunk plus the complexity of its conjugate == 1
+
+    std::random_device rd;
+    auto seed = ((u64)rd()) ^ ((u64)std::time(nullptr));
+    std::mt19937_64 gen64(seed);
+
+    DataChunk chunk;
+    for (int i = 0; i < 2000; i++) {
+        randomize_chunk(gen64, chunk);
+        auto complexity = measure_plane_chunk_complexity(chunk);
+        conjugate(chunk);
+        auto conj_complexity = measure_plane_chunk_complexity(chunk);
+        auto complexity_sum = complexity + conj_complexity;
+        ASSERT_FLOAT_EQ(complexity_sum, 1.0f);
+    }
+}
+
+TEST(bcps, conjugate) {
+    float threshold = 0.45;
+
+    std::random_device rd;
+    auto seed = ((u64)rd()) ^ ((u64)std::time(nullptr));
+    std::mt19937_64 rng(seed);
+
+    DataChunkArray arr;
+    arr.chunks.resize(100000);
+    for (auto& chunk : arr) {
+        randomize_chunk(rng, chunk);
+        chunk.bytes[0] &= ~(0x80);
+    }
+
+    auto arr_copy = arr;
+    conjugate_data(threshold, arr_copy);
+
+    ASSERT_NE(arr, arr_copy);
+
+    for (size_t i = 0; i < arr.chunks.size(); i++) {
+        auto complexity = measure_plane_chunk_complexity(arr.chunks[i]);
+        if (arr.chunks[i] != arr_copy.chunks[i]) {
+            ASSERT_LT(complexity, threshold);
+            auto cpy = arr.chunks[i];
+            conjugate(cpy);
+            ASSERT_EQ(cpy, arr_copy.chunks[i]);
+        } else {
+            ASSERT_GE(complexity, threshold);
+        }
+    }
+
+    ASSERT_NE(arr, arr_copy);
+    de_conjugate_data(arr_copy);
+    ASSERT_EQ(arr, arr_copy);
+}
+
 TEST(bcps, message_formatting) {
     std::vector<u8> message;
-    for (size_t i = 0; i < 256; i++) {
-        message.push_back(i);
-    }
-
-    auto formatted_message = format_message_for_hiding(0.0, message);
-    ASSERT_EQ(formatted_message.size(), 272);
-    for (size_t i = 0; i < 7; i++) {
-        ASSERT_EQ(formatted_message[57 + i], 52 + i);
-    }
-
-    auto recovered_message = unformat_message(formatted_message);
-    ASSERT_EQ(message, recovered_message);
-
-    message.clear();
 
     for (size_t i = 0; i < 4099; i++) {
         message.push_back(std::rand() >> 7);
     }
 
-    formatted_message = format_message_for_hiding(0.49, message);
-    recovered_message = unformat_message(formatted_message);
+    auto formatted_message = format_message_for_hiding(0.49, message);
+    auto recovered_message = unformat_message(formatted_message);
     ASSERT_EQ(message, recovered_message);
 }
 

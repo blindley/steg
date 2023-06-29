@@ -6,6 +6,11 @@
 #include <algorithm>
 #include <format>
 #include <string>
+#include <span>
+#include <cassert>
+#include <bit>
+
+#include "bcps.h"
 
 std::vector<u8> chunkify(Image const& img) {
     // taking advantage of integer division truncation
@@ -135,131 +140,104 @@ size_t const bitplane_priority[] = {
     1, 9, 17, 25, 0, 8, 16, 24
 };
 
-std::vector<u8> planify(std::vector<u8> const& data) {
-    std::vector<u8> planed_data(data.size());
+DataChunkArray planify(std::vector<u8> const& data) {
+    DataChunkArray planed_data;
+    planed_data.chunks.resize(data.size() / 8);
 
     size_t bytes_per_plane = data.size() / 32;
+    auto pd_ptr = planed_data.bytes_begin();
 
     for (size_t i = 0; i < 32; i++) {
         auto bitplane_index = bitplane_priority[i];
-        u8* planed_data_ptr = planed_data.data() + i * bytes_per_plane;
-        extract_bitplane(data.data(), bitplane_index, planed_data_ptr, bytes_per_plane);
+        extract_bitplane(data.data(), bitplane_index, pd_ptr, bytes_per_plane);
+        pd_ptr += bytes_per_plane;
     }
 
     return planed_data;
 }
 
-std::vector<u8> de_planify(std::vector<u8> const& planed_data) {
-    std::vector<u8> data(planed_data.size());
+std::vector<u8> de_planify(DataChunkArray const& planed_data) {
+    std::vector<u8> data(planed_data.chunks.size() * 8);
 
     size_t bytes_per_plane = data.size() / 32;
+    auto pd_ptr = planed_data.bytes_begin();
 
     for (size_t i = 0; i < 32; i++) {
         auto bitplane_index = bitplane_priority[i];
-        u8 const* planed_data_ptr = planed_data.data() + i * bytes_per_plane;
-        insert_bitplane(data.data(), bitplane_index, planed_data_ptr, bytes_per_plane);;
+        insert_bitplane(data.data(), bitplane_index, pd_ptr, bytes_per_plane);
+        pd_ptr += bytes_per_plane;
     }
 
     return data;
 }
 
-std::vector<u8> chunk_and_planify(Image const& img) {
+DataChunkArray chunk_and_planify(Image const& img) {
     auto chunked_data = chunkify(img);
     binary_to_gray_code_inplace(chunked_data);
     return planify(chunked_data);
 }
 
-void de_chunk_and_planify(Image& img, std::vector<u8> const& planed_data) {
+void de_chunk_and_planify(Image& img, DataChunkArray const& planed_data) {
     auto chunked_data = de_planify(planed_data);
     gray_code_to_binary_inplace(chunked_data);
     de_chunkify(img, chunked_data);
 }
 
 size_t count_bit_transitions(u8 byte) {
+    u8 x = (byte << 1) | (byte & 1);
+    u8 diff = x ^ byte;
+    return std::popcount(diff);
+}
+
+size_t count_bit_differences(u8 a, u8 b) {
+    u8 diff = a ^ b;
+    return std::popcount(diff);
+}
+
+float measure_plane_chunk_complexity(DataChunk const& chunk) {
     size_t count = 0;
-    u8 prev_bit = byte & 1;
+    for (size_t i = 0; i < 8; i++) {
+        count += count_bit_transitions(chunk.bytes[i]);
+    }
+
     for (size_t i = 0; i < 7; i++) {
-        byte >>= 1;
-        u8 this_bit = byte & 1;
-        count += (this_bit ^ prev_bit);
-        prev_bit = this_bit;
+        count += count_bit_differences(chunk.bytes[i], chunk.bytes[i+1]);
     }
-    return count;
-}
 
-u8 extract_vertical_byte(u8 const* planed_data_chunk, size_t bit_index) {
-    u8 byte = 0;
-    size_t shift = 7 - bit_index;
-    for (size_t i = 0; i < 8; i++) {
-        byte <<= 1;
-        byte |= ((planed_data_chunk[i] >> shift) & 1);
-    }
-    return byte;
-}
-
-size_t count_vertical_bit_transitions(u8 const* planed_data_chunk, size_t bit_index) {
-    u8 byte = extract_vertical_byte(planed_data_chunk, bit_index);
-    return count_bit_transitions(byte);
-}
-
-size_t count_horizontal_bit_transitions(u8 const* planed_data_chunk) {
-    size_t count = 0;
-    for (size_t i = 0; i < 8; i++) {
-        count += count_bit_transitions(planed_data_chunk[i]);
-    }
-    return count;
-}
-
-size_t count_vertical_bit_transitions(u8 const* planed_data_chunk) {
-    size_t count = 0;
-    for (size_t i = 0; i < 8; i++) {
-        count += count_vertical_bit_transitions(planed_data_chunk, i);
-    }
-    return count;
-}
-
-float measure_plane_chunk_complexity(u8 const* planed_data_chunk) {
-    size_t total_bit_transitions =
-        count_horizontal_bit_transitions(planed_data_chunk) +
-        count_vertical_bit_transitions(planed_data_chunk);
-    /* There are 7 possible transitions in a sequence of 8 bits. A plane chunk
-        has 8 rows of 8 bits. So there are 7 * 8 possible horizontal transitions,
-        and 7 * 8 possible vertical transitions
-    */
     size_t const max_bit_transitions = 2 * 7 * 8;
-    return (float)total_bit_transitions / (float)max_bit_transitions;
+    return (float)count / (float)max_bit_transitions;
 }
 
-void hide_raw_bytes(float threshold, std::vector<u8>& planed_data, std::vector<u8> const& raw_bytes) {
-    size_t rb_offset = 0;
-    for (size_t pd_offset = 0; pd_offset < planed_data.size(); pd_offset += 8) {
-        if (rb_offset >= raw_bytes.size())
+void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const& formatted_message) {
+    auto message_chunk_iter = formatted_message.begin();
+    for (auto& cover_chunk : cover) {
+        if (message_chunk_iter == formatted_message.end())
             break;
-        auto pd_ptr = planed_data.data() + pd_offset;
-        auto complexity = measure_plane_chunk_complexity(pd_ptr);
+        auto complexity = measure_plane_chunk_complexity(cover_chunk);
         if (complexity >= threshold) {
-            auto rb_ptr = raw_bytes.data() + rb_offset;
-            std::memcpy(pd_ptr, rb_ptr, 8);
-            rb_offset += 8;
+            cover_chunk = *message_chunk_iter;
+            ++message_chunk_iter;
         }
     }
 
-    if (rb_offset < raw_bytes.size()) {
-        throw std::format("max hiding capacity ({} bytes) exceeded", rb_offset);
+    if (message_chunk_iter != formatted_message.end()) {
+        auto chunks_hidden = message_chunk_iter - formatted_message.begin();
+        auto bits_hidden = chunks_hidden * 63 - 32;
+        auto bytes_hidden = bits_hidden / 8;
+        throw std::format("max hiding capacity ({} bytes) exceeded", bytes_hidden);
     }
 }
 
-std::vector<u8> unhide_raw_bytes(float threshold, std::vector<u8> const& planed_data) {
-    std::vector<u8> raw_bytes;
-    for (size_t pd_offset = 0; pd_offset < planed_data.size(); pd_offset += 8) {
-        auto pd_ptr = planed_data.data() + pd_offset;
-        auto complexity = measure_plane_chunk_complexity(pd_ptr);
+DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover) {
+    DataChunkArray formatted_message;
+    for (auto& cover_chunk : cover) {
+        auto complexity = measure_plane_chunk_complexity(cover_chunk);
         if (complexity >= threshold) {
-            raw_bytes.insert(raw_bytes.end(), pd_ptr, pd_ptr + 8);
+            formatted_message.chunks.push_back(cover_chunk);
         }
     }
 
-    return raw_bytes;
+    return formatted_message;
 }
 
 u8 get_bit(u8 const* data, size_t bit_index) {
@@ -278,54 +256,54 @@ void set_bit(u8* data, size_t bit_index, u8 bit_value) {
     }
 }
 
-void invert_plane_chunk(u8* data) {
+void conjugate(DataChunk& chunk) {
     for (size_t i = 0; i < 4; i++) {
-        data[i * 2] ^= 0xAA;
-        data[i * 2 + 1] ^= 0x55;
+        chunk.bytes[i * 2] ^= 0xAA;
+        chunk.bytes[i * 2 + 1] ^= 0x55;
     }
 }
 
-void conjugate_data(float threshold, std::vector<u8>& formatted_data) {
-    for (size_t i = 0; i < formatted_data.size(); i += 8) {
-        auto fdata_ptr = formatted_data.data() + i;
-        auto complexity = measure_plane_chunk_complexity(fdata_ptr);
+void conjugate_data(float threshold, DataChunkArray& formatted_data) {
+    for (auto& chunk : formatted_data) {
+        auto complexity = measure_plane_chunk_complexity(chunk);
         if (complexity < threshold) {
-            invert_plane_chunk(fdata_ptr);
+            conjugate(chunk);
         }
     }
 }
 
-void de_conjugate_data(std::vector<u8>& formatted_data) {
-    for (size_t i = 0; i < formatted_data.size(); i += 8) {
-        auto fdata_ptr = formatted_data.data() + i;
-        if ((fdata_ptr[0] & 0x80) == 0x80) {
-            invert_plane_chunk(fdata_ptr);
+void de_conjugate_data(DataChunkArray& formatted_data) {
+    for (auto& chunk : formatted_data) {
+        if ((chunk.bytes[0] & 0x80) == 0x80) {
+            conjugate(chunk);
         }
     }
 }
 
-std::vector<u8> format_message_for_hiding(float threshold, std::vector<u8> const& message) {
+DataChunkArray format_message_for_hiding(float threshold, std::vector<u8> const& message) {
     size_t formatted_size = (message.size() * 8 + 32 + 62) / 63 * 8;
-    std::vector<u8> formatted_data(formatted_size);
+    DataChunkArray formatted_data;
+    formatted_data.chunks.resize(formatted_size / 8);
 
     size_t out_bit_index = 0;
     size_t in_bit_index = 0;
 
     u32 message_size = message.size();
+    u8* out_ptr = formatted_data.bytes_begin();
 
-    set_bit(formatted_data.data(), out_bit_index++, 0);
+    set_bit(out_ptr, out_bit_index++, 0);
     for (size_t i = 0; i < 32; i++) {
         u8 bit_value = (message_size >> (31 - i)) & 1;
-        set_bit(formatted_data.data(), out_bit_index++, bit_value);
+        set_bit(out_ptr, out_bit_index++, bit_value);
     }
 
     for (size_t i = 0; i < message_size * 8; i++) {
         if (out_bit_index % 64 == 0) {
-            set_bit(formatted_data.data(), out_bit_index++, 0);
+            set_bit(out_ptr, out_bit_index++, 0);
         }
 
         auto bit_value = get_bit(message.data(), in_bit_index++);
-        set_bit(formatted_data.data(), out_bit_index++, bit_value);
+        set_bit(out_ptr, out_bit_index++, bit_value);
     }
 
     conjugate_data(threshold, formatted_data);
@@ -334,17 +312,18 @@ std::vector<u8> format_message_for_hiding(float threshold, std::vector<u8> const
 }
 
 // here we take formatted_data by value because we need a non-const copy of it
-std::vector<u8> unformat_message(std::vector<u8> formatted_data) {
+std::vector<u8> unformat_message(DataChunkArray formatted_data) {
     de_conjugate_data(formatted_data);
 
     size_t out_bit_index = 0;
     size_t in_bit_index = 1;
 
     u32 message_size = 0;
+    u8 const* formatted_data_ptr = formatted_data.bytes_begin();
 
     for (size_t i = 0; i < 32; i++) {
         message_size <<= 1;
-        auto bit_value = get_bit(formatted_data.data(), in_bit_index++);
+        auto bit_value = get_bit(formatted_data_ptr, in_bit_index++);
         message_size |= bit_value;
     }
 
@@ -355,7 +334,7 @@ std::vector<u8> unformat_message(std::vector<u8> formatted_data) {
         if (in_bit_index % 64 == 0) {
             in_bit_index++;
         } else {
-            auto bit_value = get_bit(formatted_data.data(), in_bit_index++);
+            auto bit_value = get_bit(formatted_data_ptr, in_bit_index++);
             set_bit(message.data(), out_bit_index++, bit_value);
         }
     }
@@ -365,14 +344,14 @@ std::vector<u8> unformat_message(std::vector<u8> formatted_data) {
 
 void bcps_hide_message(float threshold, Image& img, std::vector<u8> const& message) {
     auto formatted_data = format_message_for_hiding(threshold, message);
-    auto planed_data = chunk_and_planify(img);
-    hide_raw_bytes(threshold, planed_data, formatted_data);
-    de_chunk_and_planify(img, planed_data);
+    auto planed_image = chunk_and_planify(img);
+    hide_raw_bytes(threshold, planed_image, formatted_data);
+    de_chunk_and_planify(img, planed_image);
 }
 
 std::vector<u8> bcps_unhide_message(float threshold, Image const& img) {
-    auto planed_data = chunk_and_planify(img);
-    auto formatted_data = unhide_raw_bytes(threshold, planed_data);
+    auto planed_image = chunk_and_planify(img);
+    auto formatted_data = unhide_raw_bytes(threshold, planed_image);
     auto message = unformat_message(formatted_data);
     return message;
 }

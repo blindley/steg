@@ -30,3 +30,8 @@ add_executable(demolish
     ../src/bcps.cpp
     ../src/stb/stb.cpp
 )
+
+add_executable(complexity_histogram
+    complexity_histogram.cpp
+    ../src/bcps.cpp
+)
