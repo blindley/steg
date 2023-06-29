@@ -8,8 +8,8 @@
 #include <string>
 
 struct Image {
-    int width;
-    int height;
+    size_t width;
+    size_t height;
     std::vector<u8> pixel_data;
 
     void save(std::string const& filename);
