@@ -37,4 +37,7 @@ std::vector<u8> unformat_message(DataChunkArray formatted_data);
 void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message);
 std::vector<u8> bpcs_unhide_message(float threshold, Image const& img);
 
+DataChunkArray chunkify_all_at_once(Image& img);
+void re_chunk_that_b(Image& img, DataChunkArray const& planed_data);
+
 #endif // BCPS_TEST_202306250729

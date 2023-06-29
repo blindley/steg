@@ -323,3 +323,34 @@ TEST(bpcs, message_hiding) {
 
     ASSERT_EQ(message, extracted_message);
 }
+
+TEST(bpcs, new_chunkify) {
+    std::random_device rd;
+    auto seed = ((u64)rd()) ^ ((u64)std::time(nullptr));
+    std::mt19937_64 rng(seed);
+
+    Image img1;
+    img1.width = 257;
+    img1.height = 127;
+    img1.pixel_data.resize(img1.width * img1.height * 4);
+    for (auto& byte : img1.pixel_data) {
+        byte = rng();
+    }
+
+    auto pd1 = chunk_and_planify(img1);
+    auto pd2 = chunkify_all_at_once(img1);
+
+    ASSERT_EQ(pd1, pd2);
+
+    for (size_t i = 0; i < pd1.chunks.size(); i++) {
+        randomize_chunk(rng, pd1.chunks[i]);
+        pd2.chunks[i] = pd1.chunks[i];
+    }
+
+    auto img2 = img1;
+
+    re_chunk_that_b(img1, pd1);
+    re_chunk_that_b(img2, pd2);
+
+    ASSERT_EQ(img1.pixel_data, img2.pixel_data);
+}

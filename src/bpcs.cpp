@@ -12,6 +12,120 @@
 
 #include "bpcs.h"
 
+size_t const bitplane_priority[] = {
+    7, 15, 23, 31, 6, 14, 22, 30,
+    5, 13, 21, 29, 4, 12, 20, 28,
+    3, 11, 19, 27, 2, 10, 18, 26,
+    1, 9, 17, 25, 0, 8, 16, 24
+};
+
+u8 get_bit(u8 const* data, size_t bit_index) {
+    size_t byte_index = bit_index / 8;
+    size_t shift = 7 - (bit_index % 8);
+    return (data[byte_index] >> shift) & 1;
+}
+
+void set_bit(u8* data, size_t bit_index, u8 bit_value) {
+    size_t byte_index = bit_index / 8;
+    size_t shift = bit_index % 8;
+    if (bit_value) {
+        data[byte_index] |= (0x80 >> shift);
+    } else {
+        data[byte_index] &= ~(0x80 >> shift);
+    }
+}
+
+u8 binary_to_gray_code(u8 binary) {
+    return (binary >> 1) ^ binary;
+}
+
+u8 gray_code_to_binary(u8 gray_code) {
+    u8 temp = gray_code ^ (gray_code >> 4);
+    temp ^= (temp >> 2);
+    temp ^= (temp >> 1);
+    return temp;
+}
+
+void binary_to_gray_code_inplace(std::vector<u8>& vec) {
+    std::transform(vec.begin(), vec.end(), vec.begin(), binary_to_gray_code);
+}
+
+void gray_code_to_binary_inplace(std::vector<u8>& vec) {
+    std::transform(vec.begin(), vec.end(), vec.begin(), gray_code_to_binary);
+}
+
+DataChunkArray chunkify_all_at_once(Image& img) {
+    size_t chunks_in_width = img.width / 8;
+    size_t chunks_in_height = img.height / 8;
+    size_t usable_width = chunks_in_width * 8;
+    size_t usable_height = chunks_in_height * 8;
+
+    binary_to_gray_code_inplace(img.pixel_data);
+
+    DataChunkArray planed_data;
+    planed_data.chunks.resize(chunks_in_width * chunks_in_height * 32);
+    u8* planed_data_ptr = (u8*)planed_data.chunks.data();
+    size_t pd_bit_index = 0;
+
+    u8 const* pixel_data_ptr = img.pixel_data.data();
+
+    for (size_t bp = 0; bp < 32; bp++) {
+        size_t bitplane_index = bitplane_priority[bp];
+
+        for (size_t chunk_y_index = 0; chunk_y_index < chunks_in_height; chunk_y_index++) {
+            for (size_t chunk_x_index = 0; chunk_x_index < chunks_in_width; chunk_x_index++) {
+                for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
+                    for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
+                        size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
+                        size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
+                        size_t pixel_index = pixel_y * img.width + pixel_x;
+                        size_t byte_index = pixel_index * 4;
+                        size_t bit_index = byte_index * 8 + bitplane_index;
+                        auto bit_value = get_bit(pixel_data_ptr, bit_index);
+                        set_bit(planed_data_ptr, pd_bit_index++, bit_value);
+                    }
+                }
+            }
+        }
+    }
+
+    return planed_data;
+}
+
+void re_chunk_that_b(Image& img, DataChunkArray const& planed_data) {
+    size_t chunks_in_width = img.width / 8;
+    size_t chunks_in_height = img.height / 8;
+    size_t usable_width = chunks_in_width * 8;
+    size_t usable_height = chunks_in_height * 8;
+
+    u8 const* planed_data_ptr = (u8 const*)planed_data.chunks.data();
+    size_t pd_bit_index = 0;
+
+    u8* pixel_data_ptr = img.pixel_data.data();
+
+    for (size_t bp = 0; bp < 32; bp++) {
+        size_t bitplane_index = bitplane_priority[bp];
+
+        for (size_t chunk_y_index = 0; chunk_y_index < chunks_in_height; chunk_y_index++) {
+            for (size_t chunk_x_index = 0; chunk_x_index < chunks_in_width; chunk_x_index++) {
+                for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
+                    for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
+                        size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
+                        size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
+                        size_t pixel_index = pixel_y * img.width + pixel_x;
+                        size_t byte_index = pixel_index * 4;
+                        size_t bit_index = byte_index * 8 + bitplane_index;
+                        auto bit_value = get_bit(planed_data_ptr, pd_bit_index++);
+                        set_bit(pixel_data_ptr, bit_index, bit_value);
+                    }
+                }
+            }
+        }
+    }
+
+    gray_code_to_binary_inplace(img.pixel_data);
+}
+
 std::vector<u8> chunkify(Image const& img) {
     // taking advantage of integer division truncation
     size_t chunks_in_width = img.width / 8;
@@ -67,25 +181,6 @@ void de_chunkify(Image& img, std::vector<u8> const& chunked_data) {
     }
 }
 
-u8 binary_to_gray_code(u8 binary) {
-    return (binary >> 1) ^ binary;
-}
-
-u8 gray_code_to_binary(u8 gray_code) {
-    u8 temp = gray_code ^ (gray_code >> 4);
-    temp ^= (temp >> 2);
-    temp ^= (temp >> 1);
-    return temp;
-}
-
-void binary_to_gray_code_inplace(std::vector<u8>& vec) {
-    std::transform(vec.begin(), vec.end(), vec.begin(), binary_to_gray_code);
-}
-
-void gray_code_to_binary_inplace(std::vector<u8>& vec) {
-    std::transform(vec.begin(), vec.end(), vec.begin(), gray_code_to_binary);
-}
-
 u8 extract_bitplane_byte(u8 const* byte_ptr, size_t bitplane_index) {
     u8 extracted_byte = 0;
     byte_ptr += bitplane_index / 8;
@@ -132,13 +227,6 @@ void insert_bitplane(u8* data_ptr, size_t bitplane_index, u8 const* planed_data_
         data_ptr += 32;
     }
 }
-
-size_t const bitplane_priority[] = {
-    7, 15, 23, 31, 6, 14, 22, 30,
-    5, 13, 21, 29, 4, 12, 20, 28,
-    3, 11, 19, 27, 2, 10, 18, 26,
-    1, 9, 17, 25, 0, 8, 16, 24
-};
 
 DataChunkArray planify(std::vector<u8> const& data) {
     DataChunkArray planed_data;
@@ -238,22 +326,6 @@ DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover) {
     }
 
     return formatted_message;
-}
-
-u8 get_bit(u8 const* data, size_t bit_index) {
-    size_t byte_index = bit_index / 8;
-    size_t shift = 7 - (bit_index % 8);
-    return (data[byte_index] >> shift) & 1;
-}
-
-void set_bit(u8* data, size_t bit_index, u8 bit_value) {
-    size_t byte_index = bit_index / 8;
-    size_t shift = bit_index % 8;
-    if (bit_value) {
-        data[byte_index] |= (0x80 >> shift);
-    } else {
-        data[byte_index] &= ~(0x80 >> shift);
-    }
 }
 
 void conjugate(DataChunk& chunk) {
