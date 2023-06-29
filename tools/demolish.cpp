@@ -4,7 +4,7 @@
 
 #include "../src/utility.h"
 #include "../src/image.h"
-#include "../test/bcps_test.h"
+#include "../test/bpcs_test.h"
 
 void demolish_plane_chunk(DataChunk& chunk);
 void demolish_cat(std::string outfile, float complexity_threshold);

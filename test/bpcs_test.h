@@ -4,7 +4,7 @@
 #include <vector>
 #include "../src/image.h"
 #include "../src/utility.h"
-#include "../src/bcps.h"
+#include "../src/bpcs.h"
 
 std::vector<u8> chunkify(Image const& img);
 void de_chunkify(Image& img, std::vector<u8> const& chunked_data);
@@ -34,7 +34,7 @@ void conjugate_data(float threshold, DataChunkArray& formatted_data);
 void de_conjugate_data(DataChunkArray& formatted_data);
 DataChunkArray format_message_for_hiding(float threshold, std::vector<u8> const& message);
 std::vector<u8> unformat_message(DataChunkArray formatted_data);
-void bcps_hide_message(float threshold, Image& img, std::vector<u8> const& message);
-std::vector<u8> bcps_unhide_message(float threshold, Image const& img);
+void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message);
+std::vector<u8> bpcs_unhide_message(float threshold, Image const& img);
 
 #endif // BCPS_TEST_202306250729

@@ -20,18 +20,18 @@ add_executable(crop
 add_executable(red
     red.cpp
     ../src/image.cpp
-    ../src/bcps.cpp
+    ../src/bpcs.cpp
     ../src/stb/stb.cpp
 )
 
 add_executable(demolish
     demolish.cpp
     ../src/image.cpp
-    ../src/bcps.cpp
+    ../src/bpcs.cpp
     ../src/stb/stb.cpp
 )
 
 add_executable(complexity_histogram
     complexity_histogram.cpp
-    ../src/bcps.cpp
+    ../src/bpcs.cpp
 )

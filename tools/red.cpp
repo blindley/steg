@@ -3,7 +3,7 @@
 #include "../src/utility.h"
 #include "../src/image.h"
 
-#include "../test/bcps_test.h"
+#include "../test/bpcs_test.h"
 
 int main() {
     std::cerr << "the output of this program is meaningless after adding bitplane priority\n";

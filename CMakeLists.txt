@@ -21,7 +21,7 @@ add_executable(steg
     src/main.cpp
     src/steg.cpp
     src/lsb.cpp
-    src/bcps.cpp
+    src/bpcs.cpp
     src/stb/stb.cpp
 )
 
@@ -33,7 +33,7 @@ add_executable(
     steg_test
     test/tests.cpp
     src/image.cpp
-    src/bcps.cpp
+    src/bpcs.cpp
     src/stb/stb.cpp
 )
 

@@ -6,7 +6,7 @@
 #include "../src/utility.h"
 #include "../src/image.h"
 
-#include "bcps_test.h"
+#include "bpcs_test.h"
 
 size_t count_bits_set(u8 n) {
     size_t count = 0;
@@ -21,7 +21,7 @@ size_t num_bits_diff(u8 a, u8 b) {
     return count_bits_set(a ^ b);
 }
 
-TEST(bcps, gray_code_conversions) {
+TEST(bpcs, gray_code_conversions) {
     for (int i = 0; i <= 256; i++) {
         u8 a = i;
         u8 b = i + 1;
@@ -39,7 +39,7 @@ TEST(bcps, gray_code_conversions) {
     }
 }
 
-TEST(bcps, chunkify) {
+TEST(bpcs, chunkify) {
     Image img;
     img.width = 9;
     img.height = 9;
@@ -79,7 +79,7 @@ TEST(bcps, chunkify) {
     // TODO: add tests for images with more than one chunk
 }
 
-TEST(bcps, bitplane_bytes) {
+TEST(bpcs, bitplane_bytes) {
     std::vector<u8> data(32);
 
     insert_bitplane_byte(data.data(), 31, 0x55);
@@ -139,7 +139,7 @@ TEST(bpcs, planify) {
     ASSERT_EQ(data, de_planed_data);
 }
 
-TEST(bcps, measure_complexity) {
+TEST(bpcs, measure_complexity) {
     DataChunk chunk = {};
     ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.0f);
 
@@ -179,7 +179,7 @@ TEST(bcps, measure_complexity) {
     ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
 }
 
-TEST(bcps, set_bit) {
+TEST(bpcs, set_bit) {
     using array3 = std::array<u8, 3>;
 
     array3 a = {};
@@ -224,7 +224,7 @@ void randomize_chunk(std::mt19937_64& rng, DataChunk& chunk) {
     }
 }
 
-TEST(bcps, conjugate_complexity) {
+TEST(bpcs, conjugate_complexity) {
     // test if the complexity of a chunk plus the complexity of its conjugate == 1
 
     std::random_device rd;
@@ -242,7 +242,7 @@ TEST(bcps, conjugate_complexity) {
     }
 }
 
-TEST(bcps, conjugate) {
+TEST(bpcs, conjugate) {
     float threshold = 0.45;
 
     std::random_device rd;
@@ -278,7 +278,7 @@ TEST(bcps, conjugate) {
     ASSERT_EQ(arr, arr_copy);
 }
 
-TEST(bcps, message_formatting) {
+TEST(bpcs, message_formatting) {
     std::vector<u8> message;
 
     for (size_t i = 0; i < 4099; i++) {
@@ -290,7 +290,7 @@ TEST(bcps, message_formatting) {
     ASSERT_EQ(message, recovered_message);
 }
 
-TEST(bcps, message_hiding) {
+TEST(bpcs, message_hiding) {
     std::vector<u8> message;
     for (size_t i = 0; i < 511; i++) {
         message.push_back(std::rand() >> 7);
@@ -318,8 +318,8 @@ TEST(bcps, message_hiding) {
         }
     }
 
-    bcps_hide_message(0.3, img, message);
-    auto extracted_message = bcps_unhide_message(0.3, img);
+    bpcs_hide_message(0.3, img, message);
+    auto extracted_message = bpcs_unhide_message(0.3, img);
 
     ASSERT_EQ(message, extracted_message);
 }

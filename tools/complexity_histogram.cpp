@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cmath>
 
-#include "../src/bcps.h"
+#include "../src/bpcs.h"
 
 float measure_plane_chunk_complexity(DataChunk const& chunk);
 
