@@ -19,7 +19,6 @@ add_executable(steg
     src/args.cpp
     src/image.cpp
     src/main.cpp
-    src/steg.cpp
     src/bpcs.cpp
     src/stb/stb.cpp
 )

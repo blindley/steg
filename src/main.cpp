@@ -1,6 +1,5 @@
 #include "args.h"
 #include "image.h"
-#include "steg.h"
 #include "utility.h"
 #include "bpcs.h"
 
@@ -52,7 +51,7 @@ void main_impl(int argc, char** argv) {
         #endif
 
         auto message = load_file(args.message_file);
-        hide(cover_file, message);
+        bpcs_hide_message(0.3, cover_file, message);
 
         if (args.output_file.empty()) {
             args.output_file = "data/steg-output.png";
@@ -66,7 +65,7 @@ void main_impl(int argc, char** argv) {
         debug_print(std::cout, steg_file);
         #endif
 
-        auto extracted_message = extract(steg_file);
+        auto extracted_message = bpcs_unhide_message(0.3, steg_file);
 
         if (args.output_file.empty()) {
             args.output_file = "data/message.dat";
