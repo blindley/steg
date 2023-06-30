@@ -1,6 +1,5 @@
 
 #include "steg.h"
-#include "lsb.h"
 #include "bpcs.h"
 
 void hide(Image& img, std::vector<u8> const& message) {

@@ -20,12 +20,9 @@ add_executable(steg
     src/image.cpp
     src/main.cpp
     src/steg.cpp
-    src/lsb.cpp
     src/bpcs.cpp
     src/stb/stb.cpp
 )
-
-add_subdirectory(tools)
 
 enable_testing()
 
