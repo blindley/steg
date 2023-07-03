@@ -59,8 +59,7 @@ void gray_code_to_binary_inplace(std::vector<u8>& vec) {
 DataChunkArray chunkify(Image& img) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
-    size_t usable_width = chunks_in_width * 8;
-    size_t usable_height = chunks_in_height * 8;
+    size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
 
     binary_to_gray_code_inplace(img.pixel_data);
 
@@ -74,18 +73,19 @@ DataChunkArray chunkify(Image& img) {
     for (size_t bp = 0; bp < 32; bp++) {
         size_t bitplane_index = bitplane_priority[bp];
 
-        for (size_t chunk_y_index = 0; chunk_y_index < chunks_in_height; chunk_y_index++) {
-            for (size_t chunk_x_index = 0; chunk_x_index < chunks_in_width; chunk_x_index++) {
-                for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
-                    for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
-                        size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
-                        size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
-                        size_t pixel_index = pixel_y * img.width + pixel_x;
-                        size_t byte_index = pixel_index * 4;
-                        size_t bit_index = byte_index * 8 + bitplane_index;
-                        auto bit_value = get_bit(pixel_data_ptr, bit_index);
-                        set_bit(planed_data_ptr, pd_bit_index++, bit_value);
-                    }
+        for (size_t chunk_index = 0; chunk_index < chunks_per_bitplane; chunk_index++) {
+            size_t chunk_x_index = chunk_index % chunks_in_width;
+            size_t chunk_y_index = chunk_index / chunks_in_width;
+
+            for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
+                for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
+                    size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
+                    size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
+                    size_t pixel_index = pixel_y * img.width + pixel_x;
+                    size_t byte_index = pixel_index * 4;
+                    size_t bit_index = byte_index * 8 + bitplane_index;
+                    auto bit_value = get_bit(pixel_data_ptr, bit_index);
+                    set_bit(planed_data_ptr, pd_bit_index++, bit_value);
                 }
             }
         }
@@ -97,8 +97,7 @@ DataChunkArray chunkify(Image& img) {
 void de_chunkify(Image& img, DataChunkArray const& planed_data) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
-    size_t usable_width = chunks_in_width * 8;
-    size_t usable_height = chunks_in_height * 8;
+    size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
 
     u8 const* planed_data_ptr = (u8 const*)planed_data.chunks.data();
     size_t pd_bit_index = 0;
@@ -108,18 +107,19 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data) {
     for (size_t bp = 0; bp < 32; bp++) {
         size_t bitplane_index = bitplane_priority[bp];
 
-        for (size_t chunk_y_index = 0; chunk_y_index < chunks_in_height; chunk_y_index++) {
-            for (size_t chunk_x_index = 0; chunk_x_index < chunks_in_width; chunk_x_index++) {
-                for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
-                    for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
-                        size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
-                        size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
-                        size_t pixel_index = pixel_y * img.width + pixel_x;
-                        size_t byte_index = pixel_index * 4;
-                        size_t bit_index = byte_index * 8 + bitplane_index;
-                        auto bit_value = get_bit(planed_data_ptr, pd_bit_index++);
-                        set_bit(pixel_data_ptr, bit_index, bit_value);
-                    }
+        for (size_t chunk_index = 0; chunk_index < chunks_per_bitplane; chunk_index++) {
+            size_t chunk_x_index = chunk_index % chunks_in_width;
+            size_t chunk_y_index = chunk_index / chunks_in_width;
+
+            for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
+                for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
+                    size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
+                    size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
+                    size_t pixel_index = pixel_y * img.width + pixel_x;
+                    size_t byte_index = pixel_index * 4;
+                    size_t bit_index = byte_index * 8 + bitplane_index;
+                    auto bit_value = get_bit(planed_data_ptr, pd_bit_index++);
+                    set_bit(pixel_data_ptr, bit_index, bit_value);
                 }
             }
         }
