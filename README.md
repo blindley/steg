@@ -8,7 +8,8 @@ The input cover file can be any image which can be converted to a 32-bit rgba im
 The output will be either a 24-bit rgb image, if the input image had no alpha channel, or a 32-bit rgba image, for input images which did have an alpha channel. In case the input image did have an alpha channel, I will probably leave it untouched. Once my algorithm is completed, I will test the idea of hiding data in the alpha channel, and see what the results look like.
 
 ## The Algorithm
-- Parse command line arguments. Determine which function the user wants to perform, extract, hide or measure
+- Parse command line arguments
+- Determine which function the user wants to perform: Hide, extract or measure
 - If Hide:
   - Load image
   - Convert image to 32 bits per pixel
