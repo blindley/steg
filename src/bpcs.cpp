@@ -9,6 +9,7 @@
 #include <span>
 #include <cassert>
 #include <bit>
+#include <random>
 
 #include "bpcs.h"
 
@@ -70,10 +71,18 @@ DataChunkArray chunkify(Image& img) {
 
     u8 const* pixel_data_ptr = img.pixel_data.data();
 
+    std::mt19937_64 gen(img.width * 1000003 + img.height);
+    std::vector<size_t> chunk_priority;
+    chunk_priority.resize(chunks_per_bitplane);
+    for (size_t i = 0; i < chunks_per_bitplane; i++)
+        chunk_priority[i] = i;
+    std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
+
     for (size_t bp = 0; bp < 32; bp++) {
         size_t bitplane_index = bitplane_priority[bp];
 
-        for (size_t chunk_index = 0; chunk_index < chunks_per_bitplane; chunk_index++) {
+        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
+            size_t chunk_index = chunk_priority[_chunk_index];
             size_t chunk_x_index = chunk_index % chunks_in_width;
             size_t chunk_y_index = chunk_index / chunks_in_width;
 
@@ -104,10 +113,18 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data) {
 
     u8* pixel_data_ptr = img.pixel_data.data();
 
+    std::mt19937_64 gen(img.width * 1000003 + img.height);
+    std::vector<size_t> chunk_priority;
+    chunk_priority.resize(chunks_per_bitplane);
+    for (size_t i = 0; i < chunks_per_bitplane; i++)
+        chunk_priority[i] = i;
+    std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
+
     for (size_t bp = 0; bp < 32; bp++) {
         size_t bitplane_index = bitplane_priority[bp];
 
-        for (size_t chunk_index = 0; chunk_index < chunks_per_bitplane; chunk_index++) {
+        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
+            size_t chunk_index = chunk_priority[_chunk_index];
             size_t chunk_x_index = chunk_index % chunks_in_width;
             size_t chunk_y_index = chunk_index / chunks_in_width;
 
