@@ -9,11 +9,15 @@
 #include <format>
 #include <fstream>
 #include <iomanip>
+#include <random>
+
+float const COMPLEXITY_THRESHOLD = 0.3;
 
 void print_usage(char const* exe_name);
 void save_file(std::string const& filename, u8 const* data, size_t len);
 void save_file(std::string const& filename, std::vector<u8> const& data);
 std::vector<u8> load_file(std::string const& filename);
+std::vector<u8> random_bytes(size_t size);
 void main_impl(int argc, char** argv);
 
 int main(int argc, char** argv) {
@@ -51,8 +55,16 @@ void main_impl(int argc, char** argv) {
         debug_print(std::cout, cover_file);
         #endif
 
-        auto message = load_file(args.message_file);
-        bpcs_hide_message(0.3, cover_file, message);
+        std::vector<u8> message;
+        if (args.message_file == "--random") {
+            auto cover_copy = cover_file;
+            auto measure = measure_capacity(COMPLEXITY_THRESHOLD, cover_copy);
+            message = random_bytes(measure.total_message_capacity);
+        } else {
+            message = load_file(args.message_file);
+        }
+
+        bpcs_hide_message(COMPLEXITY_THRESHOLD, cover_file, message);
 
         if (args.output_file.empty()) {
             args.output_file = "data/steg-output.png";
@@ -66,7 +78,7 @@ void main_impl(int argc, char** argv) {
         debug_print(std::cout, steg_file);
         #endif
 
-        auto extracted_message = bpcs_unhide_message(0.3, steg_file);
+        auto extracted_message = bpcs_unhide_message(COMPLEXITY_THRESHOLD, steg_file);
 
         if (args.output_file.empty()) {
             args.output_file = "data/message.dat";
@@ -78,7 +90,7 @@ void main_impl(int argc, char** argv) {
             << args.output_file << '\n';
     } else if (args.measure) {
         auto cover_file = Image::load(args.cover_file);
-        auto measurements = measure_capacity(0.3, cover_file);
+        auto measurements = measure_capacity(COMPLEXITY_THRESHOLD, cover_file);
 
         std::cout << "total_capacity: " << measurements.total_message_capacity << '\n';
         std::cout << "complex chunks per bitplane:\n";
@@ -101,7 +113,7 @@ void main_impl(int argc, char** argv) {
 
 void print_usage(char const* exe_name) {
     std::cout << "Usage:\n";
-    std::cout << "    " << exe_name << " --hide -m <message file> -c <coverfile> [-o <stego file>]\n";
+    std::cout << "    " << exe_name << " --hide -m <message file | --random> -c <coverfile> [-o <stego file>]\n";
     std::cout << "    " << exe_name << " --extract -s <stego file> [-o <message file>]\n";
     std::cout << "    " << exe_name << " --measure -c <cover file>\n";
 }
@@ -148,4 +160,13 @@ std::vector<u8> load_file(std::string const& filename) {
     }
 
     return data;
+}
+
+std::vector<u8> random_bytes(size_t size) {
+    std::mt19937_64 gen;
+    std::vector<u8> v(size);
+    for (auto& e : v) {
+        e = gen();
+    }
+    return v;
 }
