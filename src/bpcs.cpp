@@ -319,17 +319,27 @@ std::vector<u8> bpcs_unhide_message(float threshold, Image& img) {
     return message;
 }
 
-size_t measure_capacity(float threshold, Image& img) {
+Measurements measure_capacity(float threshold, Image& img) {
+    Measurements meas = {};
     auto cover = chunkify(img);
 
+    size_t chunks_per_bitplane = cover.chunks.size() / 32;
+    size_t chunk_index = 0;
     size_t complex_chunk_count = 0;
-    for (auto& cover_chunk : cover) {
-        auto complexity = measure_plane_chunk_complexity(cover_chunk);
-        if (complexity >= threshold) {
-            complex_chunk_count++;
+    for (size_t _bitplane_index = 0; _bitplane_index < 32; _bitplane_index++) {
+        size_t bitplane_index = bitplane_priority[_bitplane_index];
+        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
+            auto complexity = measure_plane_chunk_complexity(cover.chunks[chunk_index]);
+            if (complexity >= threshold) {
+                meas.available_chunks_per_bitplane[bitplane_index]++;
+                complex_chunk_count++;
+            }
+            chunk_index++;
         }
     }
 
     size_t bit_count = complex_chunk_count * 63 - 32 - sizeof(SIGNATURE) * 8;
-    return bit_count / 8;
+    meas.total_message_capacity = bit_count / 8;
+
+    return meas;
 }

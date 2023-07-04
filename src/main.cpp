@@ -8,6 +8,7 @@
 #include <string>
 #include <format>
 #include <fstream>
+#include <iomanip>
 
 void print_usage(char const* exe_name);
 void save_file(std::string const& filename, u8 const* data, size_t len);
@@ -77,8 +78,22 @@ void main_impl(int argc, char** argv) {
             << args.output_file << '\n';
     } else if (args.measure) {
         auto cover_file = Image::load(args.cover_file);
-        auto capacity = measure_capacity(0.3, cover_file);
-        std::cout << capacity << '\n';
+        auto measurements = measure_capacity(0.3, cover_file);
+
+        std::cout << "total_capacity: " << measurements.total_message_capacity << '\n';
+        std::cout << "complex chunks per bitplane:\n";
+        std::cout << "       red     green      blue     alpha\n";
+        for (size_t i = 0; i < 8; i++) {
+            auto r = measurements.available_chunks_per_bitplane[i];
+            auto g = measurements.available_chunks_per_bitplane[8 + i];
+            auto b = measurements.available_chunks_per_bitplane[16 + i];
+            auto a = measurements.available_chunks_per_bitplane[24 + i];
+            for (size_t channel_index = 0; channel_index < 4; channel_index++) {
+                auto component_value = measurements.available_chunks_per_bitplane[channel_index * 8 + i];
+                std::cout << std::setw(10) << component_value;
+            }
+            std::cout << '\n';
+        }
     } else {
         throw "you shouldn't be here!";
     }
