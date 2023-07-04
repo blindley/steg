@@ -146,9 +146,8 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data) {
 }
 
 size_t count_bit_transitions(u8 byte) {
-    u8 x = (byte << 1) | (byte & 1);
-    u8 diff = x ^ byte;
-    return std::popcount(diff);
+    u8 x = (byte ^ (byte << 1)) & 0b11111110;
+    return std::popcount(x);
 }
 
 size_t count_bit_differences(u8 a, u8 b) {
