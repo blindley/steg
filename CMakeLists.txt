@@ -20,6 +20,7 @@ add_executable(steg
     src/image.cpp
     src/main.cpp
     src/bpcs.cpp
+    src/message.cpp
     src/stb/stb.cpp
 )
 
@@ -30,6 +31,7 @@ add_executable(
     test/tests.cpp
     src/image.cpp
     src/bpcs.cpp
+    src/message.cpp
     src/stb/stb.cpp
 )
 

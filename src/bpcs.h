@@ -5,6 +5,8 @@
 #include "utility.h"
 #include <vector>
 
+extern u8 const SIGNATURE[8];
+
 struct DataChunk {
     u8 bytes[8];
 
@@ -51,5 +53,6 @@ struct Measurements {
 void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message);
 std::vector<u8> bpcs_unhide_message(float threshold, Image& img);
 Measurements measure_capacity(float threshold, Image& img);
+float measure_complexity(DataChunk const& chunk);
 
 #endif // BCPS_202306171341
