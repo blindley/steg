@@ -28,7 +28,7 @@ void de_conjugate_data(DataChunkArray& formatted_data) {
     }
 }
 
-DataChunkArray format_message_for_hiding(float threshold, std::vector<u8> const& message) {
+DataChunkArray format_message(float threshold, std::vector<u8> const& message) {
     size_t formatted_size =
         ((message.size() + sizeof(SIGNATURE) + sizeof(u32)) * 8 + 62) / 63 * 8;
     DataChunkArray formatted_data;

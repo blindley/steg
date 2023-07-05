@@ -185,7 +185,7 @@ DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover) {
 }
 
 void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message) {
-    auto formatted_data = format_message_for_hiding(threshold, message);
+    auto formatted_data = format_message(threshold, message);
     auto planed_data = chunkify(img);
     hide_raw_bytes(threshold, planed_data, formatted_data);
     de_chunkify(img, planed_data);
