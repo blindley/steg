@@ -150,7 +150,7 @@ TEST(bpcs, message_formatting) {
         message.push_back(std::rand() >> 7);
     }
 
-    auto formatted_message = format_message(0.49, message);
+    auto formatted_message = format_message(message);
     auto recovered_message = unformat_message(formatted_message);
     ASSERT_EQ(message, recovered_message);
 }

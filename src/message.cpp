@@ -55,7 +55,7 @@ void de_conjugate_group(DataChunk* chunk_ptr) {
     }
 }
 
-DataChunkArray format_message_v2(float threshold, std::vector<u8> const& message) {
+DataChunkArray format_message_v2(std::vector<u8> const& message) {
     size_t formatted_size = message.size() + sizeof(SIGNATURE) + sizeof(u32);
     formatted_size = (formatted_size + 62) / 63 * 64;
     DataChunkArray formatted_data;
@@ -134,8 +134,8 @@ std::vector<u8> unformat_message_v2(DataChunkArray formatted_data) {
     return message;
 }
 
-DataChunkArray format_message(float threshold, std::vector<u8> const& message) {
-    return format_message_v2(threshold, message);
+DataChunkArray format_message(std::vector<u8> const& message) {
+    return format_message_v2(message);
 }
 
 std::vector<u8> unformat_message(DataChunkArray formatted_data) {

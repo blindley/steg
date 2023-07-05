@@ -15,11 +15,6 @@ size_t count_bit_differences(u8 a, u8 b);
 float measure_complexity(DataChunk const& chunk);
 void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const& formatted_message);
 DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover);
-u8 get_bit(u8 const* data, size_t bit_index);
-void set_bit(u8* data, size_t bit_index, u8 bit_value);
-void conjugate(DataChunk& chunk);
-DataChunkArray format_message(float threshold, std::vector<u8> const& message);
-std::vector<u8> unformat_message(DataChunkArray formatted_data);
 void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message);
 std::vector<u8> bpcs_unhide_message(float threshold, Image& img);
 
