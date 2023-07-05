@@ -217,8 +217,7 @@ Measurements measure_capacity(float threshold, Image& img) {
         }
     }
 
-    size_t bit_count = complex_chunk_count * 63 - 32 - sizeof(SIGNATURE) * 8;
-    meas.total_message_capacity = bit_count / 8;
+    meas.total_message_capacity = calculate_message_capacity_from_chunk_count(complex_chunk_count);
 
     return meas;
 }

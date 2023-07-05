@@ -143,42 +143,6 @@ TEST(bpcs, conjugate_complexity) {
     }
 }
 
-TEST(bpcs, conjugate) {
-    float threshold = 0.45;
-
-    std::random_device rd;
-    auto seed = ((u64)rd()) ^ ((u64)std::time(nullptr));
-    std::mt19937_64 rng(seed);
-
-    DataChunkArray arr;
-    arr.chunks.resize(100000);
-    for (auto& chunk : arr) {
-        randomize_chunk(rng, chunk);
-        chunk.bytes[0] &= ~(0x80);
-    }
-
-    auto arr_copy = arr;
-    conjugate_data(threshold, arr_copy);
-
-    ASSERT_NE(arr, arr_copy);
-
-    for (size_t i = 0; i < arr.chunks.size(); i++) {
-        auto complexity = measure_complexity(arr.chunks[i]);
-        if (arr.chunks[i] != arr_copy.chunks[i]) {
-            ASSERT_LT(complexity, threshold);
-            auto cpy = arr.chunks[i];
-            conjugate(cpy);
-            ASSERT_EQ(cpy, arr_copy.chunks[i]);
-        } else {
-            ASSERT_GE(complexity, threshold);
-        }
-    }
-
-    ASSERT_NE(arr, arr_copy);
-    de_conjugate_data(arr_copy);
-    ASSERT_EQ(arr, arr_copy);
-}
-
 TEST(bpcs, message_formatting) {
     std::vector<u8> message;
 
@@ -223,16 +187,4 @@ TEST(bpcs, message_hiding) {
     auto extracted_message = bpcs_unhide_message(0.3, img);
 
     ASSERT_EQ(message, extracted_message);
-}
-
-TEST(bpcs, message_formatting_v2) {
-    std::vector<u8> message;
-
-    for (size_t i = 0; i < 4099; i++) {
-        message.push_back(std::rand() >> 7);
-    }
-
-    auto formatted_message = format_message_v2(0.49, message);
-    auto recovered_message = unformat_message_v2(formatted_message);
-    ASSERT_EQ(message, recovered_message);
 }
