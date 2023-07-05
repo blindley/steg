@@ -5,6 +5,7 @@
 
 #include "../src/utility.h"
 #include "../src/image.h"
+#include "../src/message.h"
 
 #include "bpcs_test.h"
 
@@ -222,4 +223,16 @@ TEST(bpcs, message_hiding) {
     auto extracted_message = bpcs_unhide_message(0.3, img);
 
     ASSERT_EQ(message, extracted_message);
+}
+
+TEST(bpcs, message_formatting_v2) {
+    std::vector<u8> message;
+
+    for (size_t i = 0; i < 4099; i++) {
+        message.push_back(std::rand() >> 7);
+    }
+
+    auto formatted_message = format_message_v2(0.49, message);
+    auto recovered_message = unformat_message_v2(formatted_message);
+    ASSERT_EQ(message, recovered_message);
 }

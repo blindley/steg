@@ -5,8 +5,6 @@
 #include "utility.h"
 #include <vector>
 
-extern u8 const SIGNATURE[8];
-
 struct DataChunk {
     u8 bytes[8];
 
