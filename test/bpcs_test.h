@@ -12,7 +12,7 @@ void binary_to_gray_code_inplace(std::vector<u8>& vec);
 void gray_code_to_binary_inplace(std::vector<u8>& vec);
 size_t count_bit_transitions(u8 byte);
 size_t count_bit_differences(u8 a, u8 b);
-float measure_plane_chunk_complexity(DataChunk const& chunk);
+float measure_complexity(DataChunk const& chunk);
 void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const& formatted_message);
 DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover);
 u8 get_bit(u8 const* data, size_t bit_index);

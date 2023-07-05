@@ -155,7 +155,7 @@ size_t count_bit_differences(u8 a, u8 b) {
     return std::popcount(diff);
 }
 
-float measure_plane_chunk_complexity(DataChunk const& chunk) {
+float measure_complexity(DataChunk const& chunk) {
     size_t count = 0;
     for (size_t i = 0; i < 8; i++) {
         count += count_bit_transitions(chunk.bytes[i]);
@@ -174,7 +174,7 @@ void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const
     for (auto& cover_chunk : cover) {
         if (message_chunk_iter == formatted_message.end())
             break;
-        auto complexity = measure_plane_chunk_complexity(cover_chunk);
+        auto complexity = measure_complexity(cover_chunk);
         if (complexity >= threshold) {
             cover_chunk = *message_chunk_iter;
             ++message_chunk_iter;
@@ -192,7 +192,7 @@ void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const
 DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover) {
     DataChunkArray formatted_message;
     for (auto& cover_chunk : cover) {
-        auto complexity = measure_plane_chunk_complexity(cover_chunk);
+        auto complexity = measure_complexity(cover_chunk);
         if (complexity >= threshold) {
             formatted_message.chunks.push_back(cover_chunk);
         }
@@ -210,7 +210,7 @@ void conjugate(DataChunk& chunk) {
 
 void conjugate_data(float threshold, DataChunkArray& formatted_data) {
     for (auto& chunk : formatted_data) {
-        auto complexity = measure_plane_chunk_complexity(chunk);
+        auto complexity = measure_complexity(chunk);
         if (complexity < threshold) {
             conjugate(chunk);
         }
@@ -328,7 +328,7 @@ Measurements measure_capacity(float threshold, Image& img) {
     for (size_t _bitplane_index = 0; _bitplane_index < 32; _bitplane_index++) {
         size_t bitplane_index = bitplane_priority[_bitplane_index];
         for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
-            auto complexity = measure_plane_chunk_complexity(cover.chunks[chunk_index]);
+            auto complexity = measure_complexity(cover.chunks[chunk_index]);
             if (complexity >= threshold) {
                 meas.available_chunks_per_bitplane[bitplane_index]++;
                 complex_chunk_count++;

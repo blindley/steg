@@ -41,22 +41,22 @@ TEST(bpcs, gray_code_conversions) {
 
 TEST(bpcs, measure_complexity) {
     DataChunk chunk = {};
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.0f);
+    ASSERT_EQ(measure_complexity(chunk), 0.0f);
 
     std::memset(chunk.bytes, 0xFF, 8);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.0f);
+    ASSERT_EQ(measure_complexity(chunk), 0.0f);
 
     std::memset(chunk.bytes, 0xAA, 8);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+    ASSERT_EQ(measure_complexity(chunk), 0.5f);
 
     std::memset(chunk.bytes, 0x55, 8);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+    ASSERT_EQ(measure_complexity(chunk), 0.5f);
 
     std::memset(chunk.bytes, 0xCC, 8);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 24.0f/112.0f);
+    ASSERT_EQ(measure_complexity(chunk), 24.0f/112.0f);
 
     std::memset(chunk.bytes, 0x33, 8);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 24.0f/112.0f);
+    ASSERT_EQ(measure_complexity(chunk), 24.0f/112.0f);
 
     auto alt_fill = [&](u8 a, u8 b) {
         for (size_t i = 0; i < 4; i++) {
@@ -67,16 +67,16 @@ TEST(bpcs, measure_complexity) {
     };
 
     alt_fill(0x55, 0xAA);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 1.0f);
+    ASSERT_EQ(measure_complexity(chunk), 1.0f);
 
     alt_fill(0xAA, 0x55);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 1.0f);
+    ASSERT_EQ(measure_complexity(chunk), 1.0f);
 
     alt_fill(0, 0xFF);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+    ASSERT_EQ(measure_complexity(chunk), 0.5f);
 
     alt_fill(0xFF, 0);
-    ASSERT_EQ(measure_plane_chunk_complexity(chunk), 0.5f);
+    ASSERT_EQ(measure_complexity(chunk), 0.5f);
 }
 
 TEST(bpcs, set_bit) {
@@ -134,9 +134,9 @@ TEST(bpcs, conjugate_complexity) {
     DataChunk chunk;
     for (int i = 0; i < 2000; i++) {
         randomize_chunk(gen64, chunk);
-        auto complexity = measure_plane_chunk_complexity(chunk);
+        auto complexity = measure_complexity(chunk);
         conjugate(chunk);
-        auto conj_complexity = measure_plane_chunk_complexity(chunk);
+        auto conj_complexity = measure_complexity(chunk);
         auto complexity_sum = complexity + conj_complexity;
         ASSERT_FLOAT_EQ(complexity_sum, 1.0f);
     }
@@ -162,7 +162,7 @@ TEST(bpcs, conjugate) {
     ASSERT_NE(arr, arr_copy);
 
     for (size_t i = 0; i < arr.chunks.size(); i++) {
-        auto complexity = measure_plane_chunk_complexity(arr.chunks[i]);
+        auto complexity = measure_complexity(arr.chunks[i]);
         if (arr.chunks[i] != arr_copy.chunks[i]) {
             ASSERT_LT(complexity, threshold);
             auto cpy = arr.chunks[i];
