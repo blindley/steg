@@ -22,22 +22,6 @@ size_t const bitplane_priority[] = {
     1, 9, 17, 25, 0, 8, 16, 24
 };
 
-u8 get_bit(u8 const* data, size_t bit_index) {
-    size_t byte_index = bit_index / 8;
-    size_t shift = 7 - (bit_index % 8);
-    return (data[byte_index] >> shift) & 1;
-}
-
-void set_bit(u8* data, size_t bit_index, u8 bit_value) {
-    size_t byte_index = bit_index / 8;
-    size_t shift = bit_index % 8;
-    if (bit_value) {
-        data[byte_index] |= (0x80 >> shift);
-    } else {
-        data[byte_index] &= ~(0x80 >> shift);
-    }
-}
-
 u8 binary_to_gray_code(u8 binary) {
     return (binary >> 1) ^ binary;
 }
