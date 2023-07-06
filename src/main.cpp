@@ -112,10 +112,17 @@ void main_impl(int argc, char** argv) {
 }
 
 void print_usage(char const* exe_name) {
+    char const* after_last_slash = exe_name;
+    for (size_t i = 0; exe_name[i] != 0; i++) {
+        if (exe_name[i] == '/' || exe_name[i] == '\\') {
+            after_last_slash = exe_name + i + 1;
+        }
+    }
+
     std::cout << "Usage:\n";
-    std::cout << "    " << exe_name << " --hide -m <message file | --random> -c <coverfile> [-o <stego file>]\n";
-    std::cout << "    " << exe_name << " --extract -s <stego file> [-o <message file>]\n";
-    std::cout << "    " << exe_name << " --measure -c <cover file>\n";
+    std::cout << "    " << after_last_slash << " --hide -m <message file | --random> -c <coverfile> [-o <stego file>]\n";
+    std::cout << "    " << after_last_slash << " --extract -s <stego file> [-o <message file>]\n";
+    std::cout << "    " << after_last_slash << " --measure -c <cover file>\n";
 }
 
 void save_file(std::string const& filename, u8 const* data, size_t len) {
