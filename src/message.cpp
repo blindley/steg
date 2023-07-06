@@ -1,6 +1,9 @@
 
-#include "bpcs.h"
+#include "datachunk.h"
+// #include "bpcs.h"
 #include "utility.h"
+
+#include <stdexcept>
 
 u8 const SIGNATURE[] = { 0x2F, 0x64, 0xA9 };
 
@@ -16,41 +19,34 @@ size_t calculate_message_capacity_from_chunk_count(size_t chunk_count) {
     return usable_bytes;
 }
 
-void conjugate(DataChunk& chunk) {
-    for (size_t i = 0; i < 4; i++) {
-        chunk.bytes[i * 2] ^= 0xAA;
-        chunk.bytes[i * 2 + 1] ^= 0x55;
-    }
-}
-
 void conjugate_group(DataChunk* chunk_ptr) {
     u8 conj_map = 0;
     for (size_t i = 1; i < 8; i++) {
         conj_map <<= 1;
-        auto complexity = measure_complexity(chunk_ptr[i]);
+        auto complexity = chunk_ptr[i].measure_complexity();
         if (complexity < 0.5) {
-            conjugate(chunk_ptr[i]);
+            chunk_ptr[i].conjugate();
             conj_map |= 1;
         }
     }
 
     chunk_ptr[0].bytes[0] = conj_map;
-    auto complexity = measure_complexity(chunk_ptr[0]);
+    auto complexity = chunk_ptr[0].measure_complexity();
     if (complexity < 0.5) {
-        conjugate(chunk_ptr[0]);
+        chunk_ptr[0].conjugate();
     }
 }
 
 void de_conjugate_group(DataChunk* chunk_ptr) {
     if ((chunk_ptr[0].bytes[0] & 0x80) == 0x80) {
-        conjugate(chunk_ptr[0]);
+        chunk_ptr[0].conjugate();
     }
 
     auto conj_map = chunk_ptr[0].bytes[0];
 
     for (size_t i = 1; i < 8; i++) {
         if (conj_map & (0x80 >> i)) {
-            conjugate(chunk_ptr[i]);
+            chunk_ptr[i].conjugate();
         }
     }
 }
@@ -141,3 +137,21 @@ DataChunkArray format_message(std::vector<u8> const& message) {
 std::vector<u8> unformat_message(DataChunkArray formatted_data) {
     return unformat_message_v2(formatted_data);
 }
+
+#ifdef STEG_TEST
+
+#include <gtest/gtest.h>
+
+TEST(message, message_formatting) {
+    std::vector<u8> message;
+
+    for (size_t i = 0; i < 4099; i++) {
+        message.push_back(std::rand() >> 7);
+    }
+
+    auto formatted_message = format_message(message);
+    auto recovered_message = unformat_message(formatted_message);
+    ASSERT_EQ(message, recovered_message);
+}
+
+#endif // STEG_TEST

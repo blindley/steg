@@ -16,11 +16,13 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(steg
+    src/main.cpp
     src/args.cpp
     src/image.cpp
-    src/main.cpp
     src/bpcs.cpp
     src/message.cpp
+    src/datachunk.cpp
+    src/utility.cpp
     src/stb/stb.cpp
 )
 
@@ -28,12 +30,15 @@ enable_testing()
 
 add_executable(
     steg_test
-    test/tests.cpp
     src/image.cpp
     src/bpcs.cpp
     src/message.cpp
+    src/datachunk.cpp
+    src/utility.cpp
     src/stb/stb.cpp
 )
+
+target_compile_definitions(steg_test PRIVATE STEG_TEST)
 
 target_link_libraries(
     steg_test

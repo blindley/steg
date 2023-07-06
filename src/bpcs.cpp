@@ -1,5 +1,4 @@
-#include "utility.h"
-#include "image.h"
+
 
 #include <vector>
 #include <cstdlib>
@@ -13,6 +12,9 @@
 
 #include "bpcs.h"
 #include "message.h"
+#include "utility.h"
+#include "image.h"
+#include "datachunk.h"
 
 size_t const bitplane_priority[] = {
     7, 15, 23, 31, 6, 14, 22, 30,
@@ -128,36 +130,12 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data) {
     gray_code_to_binary_inplace(img.pixel_data);
 }
 
-size_t count_bit_transitions(u8 byte) {
-    u8 x = (byte ^ (byte << 1)) & 0b11111110;
-    return std::popcount(x);
-}
-
-size_t count_bit_differences(u8 a, u8 b) {
-    u8 diff = a ^ b;
-    return std::popcount(diff);
-}
-
-float measure_complexity(DataChunk const& chunk) {
-    size_t count = 0;
-    for (size_t i = 0; i < 8; i++) {
-        count += count_bit_transitions(chunk.bytes[i]);
-    }
-
-    for (size_t i = 0; i < 7; i++) {
-        count += count_bit_differences(chunk.bytes[i], chunk.bytes[i+1]);
-    }
-
-    size_t const max_bit_transitions = 2 * 7 * 8;
-    return (float)count / (float)max_bit_transitions;
-}
-
 void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const& formatted_message) {
     auto message_chunk_iter = formatted_message.begin();
     for (auto& cover_chunk : cover) {
         if (message_chunk_iter == formatted_message.end())
             break;
-        auto complexity = measure_complexity(cover_chunk);
+        auto complexity = cover_chunk.measure_complexity();
         if (complexity >= threshold) {
             cover_chunk = *message_chunk_iter;
             ++message_chunk_iter;
@@ -175,7 +153,7 @@ void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const
 DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover) {
     DataChunkArray formatted_message;
     for (auto& cover_chunk : cover) {
-        auto complexity = measure_complexity(cover_chunk);
+        auto complexity = cover_chunk.measure_complexity();
         if (complexity >= threshold) {
             formatted_message.chunks.push_back(cover_chunk);
         }
@@ -208,7 +186,7 @@ Measurements measure_capacity(float threshold, Image& img) {
     for (size_t _bitplane_index = 0; _bitplane_index < 32; _bitplane_index++) {
         size_t bitplane_index = bitplane_priority[_bitplane_index];
         for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
-            auto complexity = measure_complexity(cover.chunks[chunk_index]);
+            auto complexity = cover.chunks[chunk_index].measure_complexity();
             if (complexity >= threshold) {
                 meas.available_chunks_per_bitplane[bitplane_index]++;
                 complex_chunk_count++;
@@ -221,3 +199,66 @@ Measurements measure_capacity(float threshold, Image& img) {
 
     return meas;
 }
+
+#ifdef STEG_TEST
+
+#include <gtest/gtest.h>
+
+size_t num_bits_diff(u8 a, u8 b) {
+    return std::popcount((u8)(a ^ b));
+}
+
+TEST(bpcs, gray_code_conversions) {
+    for (int i = 0; i <= 256; i++) {
+        u8 a = i;
+        u8 b = i + 1;
+        u8 ga = binary_to_gray_code(a);
+        u8 gb = binary_to_gray_code(b);
+        size_t diff = num_bits_diff(ga, gb);
+        ASSERT_EQ(diff, 1);
+    }
+
+    for (int i = 0; i < 256; i++) {
+        u8 a = i;
+        u8 ga = binary_to_gray_code(a);
+        u8 ba = gray_code_to_binary(ga);
+        ASSERT_EQ(a, ba);
+    }
+}
+
+TEST(bpcs, message_hiding) {
+    std::vector<u8> message;
+    for (size_t i = 0; i < 511; i++) {
+        message.push_back(std::rand() >> 7);
+    }
+
+    Image img = {};
+    img.width = 257;
+    img.height = 135;
+    img.pixel_data.resize(img.width * img.height * 4);
+    for (size_t chunk_start_y = 0; chunk_start_y + 8 <= img.height; chunk_start_y += 8) {
+        for (size_t chunk_start_x = 0; chunk_start_x + 8 <= img.width; chunk_start_x += 8) {
+            float p = (float)rand() / (float)RAND_MAX;
+            if (p < 0.5) {
+                for (size_t y_off = 0; y_off < 8; y_off++) {
+                    for (size_t x_off = 0; x_off < 8; x_off++) {
+                        size_t pixel_data_offset = (chunk_start_y + y_off) * img.width * 4
+                            + x_off * 4;
+                        for (size_t i = 0; i < 4; i++) {
+                            size_t offset = pixel_data_offset + i;
+                            img.pixel_data[offset] = std::rand() >> 7;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    bpcs_hide_message(0.3, img, message);
+    auto extracted_message = bpcs_unhide_message(0.3, img);
+
+    ASSERT_EQ(message, extracted_message);
+}
+
+
+#endif // STEG_TEST

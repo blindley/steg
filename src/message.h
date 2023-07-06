@@ -8,7 +8,6 @@
 
 extern u8 const SIGNATURE[3];
 
-void conjugate(DataChunk& chunk);
 DataChunkArray format_message(std::vector<u8> const& message);
 std::vector<u8> unformat_message(DataChunkArray formatted_data);
 
