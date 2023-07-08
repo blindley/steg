@@ -38,7 +38,7 @@ Args parse_args(int argc, char** argv) {
     std::vector<std::string> arg_vec(argv, argv + argc);
 
     std::unordered_map<std::string, std::string> args_map;
-    std::string boolean_arg_list[] = {"--hide", "--extract", "--measure"};
+    std::string boolean_arg_list[] = {"--hide", "--extract", "--measure", "--help"};
     std::string args_with_args[] = {"-m", "-c", "-s", "-o", "-t"};
 
     for (size_t i = 1; i < argc; i++) {
@@ -61,6 +61,7 @@ Args parse_args(int argc, char** argv) {
         }
     }
 
+    args.help = args_map.contains("--help");
     args.hide = args_map.contains("--hide");
     args.extract = args_map.contains("--extract");
     args.measure = args_map.contains("--measure");
@@ -70,8 +71,15 @@ Args parse_args(int argc, char** argv) {
     args.output_file = args_map["-o"];
     auto threshold_str = args_map["-t"];
 
-    if (!args.hide && !args.extract && !args.measure) {
-        throw "No mode selected";
+    if (!args.help && !args.hide && !args.extract && !args.measure) {
+        throw "No mode selected (try --help)";
+    }
+
+    if (args.help) {
+        // ignore all other arguments
+        args = {};
+        args.help = true;
+        return args;
     }
 
     if (args.hide) {

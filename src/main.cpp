@@ -14,6 +14,9 @@
 float const COMPLEXITY_THRESHOLD = 0.3;
 
 void print_usage(char const* exe_name);
+void print_help(char const* exe_name);
+
+
 void save_file(std::string const& filename, u8 const* data, size_t len);
 void save_file(std::string const& filename, std::vector<u8> const& data);
 std::vector<u8> load_file(std::string const& filename);
@@ -48,7 +51,9 @@ void main_impl(int argc, char** argv) {
     debug_print(std::cout, args);
     #endif
 
-    if (args.hide) {
+    if (args.help) {
+        print_help(argv[0]);
+    } else if (args.hide) {
         auto cover_file = Image::load(args.cover_file);
 
         #ifdef DEBUG
@@ -111,18 +116,49 @@ void main_impl(int argc, char** argv) {
     }
 }
 
-void print_usage(char const* exe_name) {
-    char const* after_last_slash = exe_name;
-    for (size_t i = 0; exe_name[i] != 0; i++) {
-        if (exe_name[i] == '/' || exe_name[i] == '\\') {
-            after_last_slash = exe_name + i + 1;
+std::string get_exe_short_name(char const* argv0) {
+    char const* after_last_slash = argv0;
+    for (size_t i = 0; argv0[i] != 0; i++) {
+        if (argv0[i] == '/' || argv0[i] == '\\') {
+            after_last_slash = argv0 + i + 1;
         }
     }
+    return after_last_slash;
+}
+
+void print_usage(char const* exe_name) {
+    auto exe_short_name = get_exe_short_name(exe_name);
 
     std::cout << "Usage:\n";
-    std::cout << "    " << after_last_slash << " --hide -m <message file | --random> -c <coverfile> [-o <stego file>]\n";
-    std::cout << "    " << after_last_slash << " --extract -s <stego file> [-o <message file>]\n";
-    std::cout << "    " << after_last_slash << " --measure -c <cover file> -t <threshold>\n";
+    std::cout << "    " << exe_short_name << " --hide -m <message file | --random> -c <coverfile> [-o <stego file>]\n";
+    std::cout << "    " << exe_short_name << " --extract -s <stego file> [-o <message file>]\n";
+    std::cout << "    " << exe_short_name << " --measure -c <cover file> -t <threshold>\n";
+    std::cout << "    " << exe_short_name << " --help\n";
+}
+
+void print_help(char const* argv0) {
+    print_usage(argv0);
+
+    std::cout << "\n";
+    std::cout << "Modes:\n";
+    std::cout << "  --hide              Hide message in cover image\n";
+    std::cout << "  --extract           Extract hidden message\n";
+    std::cout << "  --measure           Measure hiding capacity of an image\n";
+    std::cout << "  --help              Display this help message\n";
+
+    std::cout << "\nHide Mode Options:\n";
+    std::cout << "  -c <coverfile>      Cover image to hide message in\n";
+    std::cout << "  -m <message file>   Message file to hide\n";
+    std::cout << "  -m --random         Fill cover file with random data\n";
+    std::cout << "  -o <stego file>     Name of output stego image file\n";
+
+    std::cout << "\nExtract Mode Options:\n";
+    std::cout << "  -s <stego file>     Stego file to extract hidden message from\n";
+    std::cout << "  -o <message file>   Name of output message file\n";
+    
+    std::cout << "\nMeasure Mode Options:\n";
+    std::cout << "  -c <cover file>     Cover image to measure for capacity\n";
+    std::cout << "  -t <threshold>      Complexity threshold to measure for [0,0.5]\n";
 }
 
 void save_file(std::string const& filename, u8 const* data, size_t len) {

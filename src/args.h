@@ -5,6 +5,7 @@
 #include <ostream>
 
 struct Args {
+    bool help;
     bool extract;
     bool hide;
     bool measure;
