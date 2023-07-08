@@ -130,7 +130,7 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data) {
     gray_code_to_binary_inplace(img.pixel_data);
 }
 
-void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const& formatted_message) {
+void hide_formatted_message(float threshold, DataChunkArray& cover, DataChunkArray const& formatted_message) {
     auto message_chunk_iter = formatted_message.begin();
     for (auto& cover_chunk : cover) {
         if (message_chunk_iter == formatted_message.end())
@@ -150,7 +150,7 @@ void hide_raw_bytes(float threshold, DataChunkArray& cover, DataChunkArray const
     }
 }
 
-DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover) {
+DataChunkArray unhide_formatted_message(float threshold, DataChunkArray const& cover) {
     DataChunkArray formatted_message;
     for (auto& cover_chunk : cover) {
         auto complexity = cover_chunk.measure_complexity();
@@ -165,13 +165,13 @@ DataChunkArray unhide_raw_bytes(float threshold, DataChunkArray const& cover) {
 void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message) {
     auto formatted_data = format_message(message);
     auto planed_data = chunkify(img);
-    hide_raw_bytes(threshold, planed_data, formatted_data);
+    hide_formatted_message(threshold, planed_data, formatted_data);
     de_chunkify(img, planed_data);
 }
 
 std::vector<u8> bpcs_unhide_message(float threshold, Image& img) {
     auto planed_data = chunkify(img);
-    auto formatted_data = unhide_raw_bytes(threshold, planed_data);
+    auto formatted_data = unhide_formatted_message(threshold, planed_data);
     auto message = unformat_message(formatted_data);
     return message;
 }
