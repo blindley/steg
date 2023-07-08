@@ -90,7 +90,7 @@ void main_impl(int argc, char** argv) {
             << args.output_file << '\n';
     } else if (args.measure) {
         auto cover_file = Image::load(args.cover_file);
-        auto measurements = measure_capacity(COMPLEXITY_THRESHOLD, cover_file);
+        auto measurements = measure_capacity(args.threshold, cover_file);
 
         std::cout << "total_capacity: " << measurements.total_message_capacity << '\n';
         std::cout << "complex chunks per bitplane:\n";
@@ -122,7 +122,7 @@ void print_usage(char const* exe_name) {
     std::cout << "Usage:\n";
     std::cout << "    " << after_last_slash << " --hide -m <message file | --random> -c <coverfile> [-o <stego file>]\n";
     std::cout << "    " << after_last_slash << " --extract -s <stego file> [-o <message file>]\n";
-    std::cout << "    " << after_last_slash << " --measure -c <cover file>\n";
+    std::cout << "    " << after_last_slash << " --measure -c <cover file> -t <threshold>\n";
 }
 
 void save_file(std::string const& filename, u8 const* data, size_t len) {

@@ -12,6 +12,7 @@ struct Args {
     std::string cover_file;
     std::string stego_file;
     std::string output_file;
+    float threshold;
 };
 
 void debug_print(std::ostream& ostr, Args const& args);

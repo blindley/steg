@@ -19,6 +19,19 @@ void debug_print(std::ostream& ostr, Args const& args) {
     ostr << "}\n";
 }
 
+float parse_threshold(std::string s) {
+    float result = -1.0f;
+    try {
+        result = std::stof(s);
+    } catch (...) {}
+
+    if (!(result >= 0.0f) || !(result <= 0.5f)) {
+        throw "threshold should be a value in [0, 0.5]";
+    }
+
+    return result;
+}
+
 Args parse_args(int argc, char** argv) {
     Args args = {};
 
@@ -26,7 +39,7 @@ Args parse_args(int argc, char** argv) {
 
     std::unordered_map<std::string, std::string> args_map;
     std::string boolean_arg_list[] = {"--hide", "--extract", "--measure"};
-    std::string args_with_args[] = {"-m", "-c", "-s", "-o"};
+    std::string args_with_args[] = {"-m", "-c", "-s", "-o", "-t"};
 
     for (size_t i = 1; i < argc; i++) {
         if (contains(boolean_arg_list, arg_vec[i])) {
@@ -55,6 +68,7 @@ Args parse_args(int argc, char** argv) {
     args.cover_file = args_map["-c"];
     args.stego_file = args_map["-s"];
     args.output_file = args_map["-o"];
+    auto threshold_str = args_map["-t"];
 
     if (!args.hide && !args.extract && !args.measure) {
         throw "No mode selected";
@@ -81,6 +95,9 @@ Args parse_args(int argc, char** argv) {
 
         if (!args.stego_file.empty())
             throw "Unexpected argument '-s' in hide mode";
+
+        if (!threshold_str.empty())
+            throw "Unexpected argument '-t' in hide mode";
     }
 
     if (args.extract) {
@@ -92,11 +109,17 @@ Args parse_args(int argc, char** argv) {
 
         if (!args.cover_file.empty())
             throw "Unexpected argument '-c' in extract mode";
+
+        if (!threshold_str.empty())
+            throw "Unexpected argument '-t' in hide mode";
     }
 
     if (args.measure) {
         if (args.cover_file.empty())
             throw "Missing '-c' argument";
+
+        if (threshold_str.empty())
+            throw "Missing '-t' argument";
 
         if (!args.message_file.empty())
             throw "Unexpected argument '-m' in measure mode";
@@ -106,6 +129,8 @@ Args parse_args(int argc, char** argv) {
 
         if (!args.output_file.empty())
             throw "Unexpected argument '-o' in measure mode";
+
+        args.threshold = parse_threshold(threshold_str);
     }
 
     return args;
