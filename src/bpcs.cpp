@@ -150,11 +150,11 @@ void hide_formatted_message(float threshold, DataChunkArray& cover, DataChunkArr
     }
 }
 
-DataChunkArray unhide_formatted_message(float threshold, DataChunkArray const& cover) {
+DataChunkArray unhide_formatted_message(DataChunkArray const& cover) {
     DataChunkArray formatted_message;
     for (auto& cover_chunk : cover) {
         auto complexity = cover_chunk.measure_complexity();
-        if (complexity >= threshold) {
+        if (complexity >= 0.5) {
             formatted_message.chunks.push_back(cover_chunk);
         }
     }
@@ -169,9 +169,9 @@ void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& messa
     de_chunkify(img, planed_data);
 }
 
-std::vector<u8> bpcs_unhide_message(float threshold, Image& img) {
+std::vector<u8> bpcs_unhide_message(Image& img) {
     auto planed_data = chunkify(img);
-    auto formatted_data = unhide_formatted_message(threshold, planed_data);
+    auto formatted_data = unhide_formatted_message(planed_data);
     auto message = unformat_message(formatted_data);
     return message;
 }
@@ -255,7 +255,7 @@ TEST(bpcs, message_hiding) {
     }
 
     bpcs_hide_message(0.3, img, message);
-    auto extracted_message = bpcs_unhide_message(0.3, img);
+    auto extracted_message = bpcs_unhide_message(img);
 
     ASSERT_EQ(message, extracted_message);
 }

@@ -83,7 +83,7 @@ void main_impl(int argc, char** argv) {
         debug_print(std::cout, steg_file);
         #endif
 
-        auto extracted_message = bpcs_unhide_message(COMPLEXITY_THRESHOLD, steg_file);
+        auto extracted_message = bpcs_unhide_message(steg_file);
 
         if (args.output_file.empty()) {
             args.output_file = "data/message.dat";
