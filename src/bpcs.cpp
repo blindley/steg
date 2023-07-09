@@ -136,7 +136,9 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data,
     gray_code_to_binary_inplace(img.pixel_data);
 }
 
-void hide_formatted_message(float threshold, DataChunkArray& cover, DataChunkArray const& formatted_message) {
+void hide_formatted_message(float threshold, DataChunkArray& cover,
+    DataChunkArray const& formatted_message)
+{
     auto message_chunk_iter = formatted_message.begin();
     for (auto& cover_chunk : cover) {
         if (message_chunk_iter == formatted_message.end())
@@ -241,9 +243,12 @@ TEST(bpcs, gray_code_conversions) {
 }
 
 TEST(bpcs, message_hiding) {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+
     std::vector<u8> message;
     for (size_t i = 0; i < 511; i++) {
-        message.push_back(std::rand() >> 7);
+        message.push_back(gen());
     }
 
     Image img = {};
@@ -260,7 +265,7 @@ TEST(bpcs, message_hiding) {
                             + x_off * 4;
                         for (size_t i = 0; i < 4; i++) {
                             size_t offset = pixel_data_offset + i;
-                            img.pixel_data[offset] = std::rand() >> 7;
+                            img.pixel_data[offset] = gen();
                         }
                     }
                 }
@@ -268,10 +273,23 @@ TEST(bpcs, message_hiding) {
         }
     }
 
+    auto img_original = img;
+
     bpcs_hide_message(img, message, STANDARD_BITPLANE_PRIORITY);
     auto extracted_message = bpcs_unhide_message(img, STANDARD_BITPLANE_PRIORITY);
 
     ASSERT_EQ(message, extracted_message);
+
+    img = img_original;
+
+    auto bitplane_priority = STANDARD_BITPLANE_PRIORITY;
+    std::shuffle(bitplane_priority.begin(), bitplane_priority.end(), gen);
+    bitplane_priority.resize(23);
+
+    bpcs_hide_message(img, message, bitplane_priority);
+    auto extracted_message2 = bpcs_unhide_message(img, bitplane_priority);
+
+    ASSERT_EQ(message, extracted_message2);
 }
 
 
