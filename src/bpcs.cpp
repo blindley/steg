@@ -162,11 +162,15 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover) {
     return formatted_message;
 }
 
-void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message) {
+float bpcs_hide_message(Image& img, std::vector<u8> const& message) {
     auto formatted_data = format_message(message);
     auto planed_data = chunkify(img);
+    CDF cdf(planed_data);
+    float threshold = cdf.max_threshold_to_store(formatted_data.chunks.size());
+    threshold = std::min(0.5f, threshold);
     hide_formatted_message(threshold, planed_data, formatted_data);
     de_chunkify(img, planed_data);
+    return threshold;
 }
 
 std::vector<u8> bpcs_unhide_message(Image& img) {
@@ -254,7 +258,7 @@ TEST(bpcs, message_hiding) {
         }
     }
 
-    bpcs_hide_message(0.3, img, message);
+    bpcs_hide_message(img, message);
     auto extracted_message = bpcs_unhide_message(img);
 
     ASSERT_EQ(message, extracted_message);

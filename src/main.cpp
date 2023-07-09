@@ -11,8 +11,6 @@
 #include <iomanip>
 #include <random>
 
-float const COMPLEXITY_THRESHOLD = 0.3;
-
 void print_usage(char const* exe_name);
 void print_help(char const* exe_name);
 
@@ -63,19 +61,20 @@ void main_impl(int argc, char** argv) {
         std::vector<u8> message;
         if (args.message_file == "--random") {
             auto cover_copy = cover_file;
-            auto measure = measure_capacity(COMPLEXITY_THRESHOLD, cover_copy);
+            auto measure = measure_capacity(0.3, cover_copy);
             message = random_bytes(measure.total_message_capacity);
         } else {
             message = load_file(args.message_file);
         }
 
-        bpcs_hide_message(COMPLEXITY_THRESHOLD, cover_file, message);
+        float threshold = bpcs_hide_message(cover_file, message);
 
         if (args.output_file.empty()) {
             args.output_file = "data/steg-output.png";
         }
 
         cover_file.save(args.output_file);
+        std::cout << "complexity threshold : " << threshold << '\n';
     } else if (args.extract) {
         auto steg_file = Image::load(args.stego_file);
 

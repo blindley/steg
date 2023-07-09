@@ -12,7 +12,7 @@ struct Measurements {
     size_t available_chunks_per_bitplane[32];
 };
 
-void bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message);
+float bpcs_hide_message(Image& img, std::vector<u8> const& message);
 std::vector<u8> bpcs_unhide_message(Image& img);
 Measurements measure_capacity(float threshold, Image& img);
 
