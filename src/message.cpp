@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 u8 const SIGNATURE[] = { 0x2F, 0x64, 0xA9 };
+u8 const SIG14[] = { 53, 219, 170, 213, 10, 183, 76, 85, 179, 82, 181, 170, 55, 85 };
 
 size_t calculate_formatted_message_size(size_t message_size) {
     size_t formatted_size = message_size + sizeof(SIGNATURE) + sizeof(u32);

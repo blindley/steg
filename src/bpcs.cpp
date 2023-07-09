@@ -16,7 +16,7 @@
 #include "image.h"
 #include "datachunk.h"
 
-size_t const bitplane_priority[] = {
+std::vector<size_t> const STANDARD_BITPLANE_PRIORITY = {
     7, 15, 23, 31, 6, 14, 22, 30,
     5, 13, 21, 29, 4, 12, 20, 28,
     3, 11, 19, 27, 2, 10, 18, 26,
@@ -42,15 +42,17 @@ void gray_code_to_binary_inplace(std::vector<u8>& vec) {
     std::transform(vec.begin(), vec.end(), vec.begin(), gray_code_to_binary);
 }
 
-DataChunkArray chunkify(Image& img) {
+DataChunkArray chunkify(Image& img, std::vector<size_t> const& bitplane_priority) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
 
+    size_t num_bitplanes = bitplane_priority.size();
+
     binary_to_gray_code_inplace(img.pixel_data);
 
     DataChunkArray planed_data;
-    planed_data.chunks.resize(chunks_in_width * chunks_in_height * 32);
+    planed_data.chunks.resize(chunks_in_width * chunks_in_height * num_bitplanes);
     u8* planed_data_ptr = (u8*)planed_data.chunks.data();
     size_t pd_bit_index = 0;
 
@@ -63,7 +65,7 @@ DataChunkArray chunkify(Image& img) {
         chunk_priority[i] = i;
     std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
-    for (size_t bp = 0; bp < 32; bp++) {
+    for (size_t bp = 0; bp < num_bitplanes; bp++) {
         size_t bitplane_index = bitplane_priority[bp];
 
         for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
@@ -88,10 +90,14 @@ DataChunkArray chunkify(Image& img) {
     return planed_data;
 }
 
-void de_chunkify(Image& img, DataChunkArray const& planed_data) {
+void de_chunkify(Image& img, DataChunkArray const& planed_data,
+    std::vector<size_t> const& bitplane_priority)
+{
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
+
+    size_t num_bitplanes = bitplane_priority.size();
 
     u8 const* planed_data_ptr = (u8 const*)planed_data.chunks.data();
     size_t pd_bit_index = 0;
@@ -105,7 +111,7 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data) {
         chunk_priority[i] = i;
     std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
-    for (size_t bp = 0; bp < 32; bp++) {
+    for (size_t bp = 0; bp < num_bitplanes; bp++) {
         size_t bitplane_index = bitplane_priority[bp];
 
         for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
@@ -162,27 +168,31 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover) {
     return formatted_message;
 }
 
-float bpcs_hide_message(Image& img, std::vector<u8> const& message) {
+float bpcs_hide_message(Image& img, std::vector<u8> const& message,
+    std::vector<size_t> const& bitplane_priority)
+{
     auto formatted_data = format_message(message);
-    auto planed_data = chunkify(img);
+    auto planed_data = chunkify(img, bitplane_priority);
     CDF cdf(planed_data);
     float threshold = cdf.max_threshold_to_store(formatted_data.chunks.size());
     threshold = std::min(0.5f, threshold);
     hide_formatted_message(threshold, planed_data, formatted_data);
-    de_chunkify(img, planed_data);
+    de_chunkify(img, planed_data, bitplane_priority);
     return threshold;
 }
 
-std::vector<u8> bpcs_unhide_message(Image& img) {
-    auto planed_data = chunkify(img);
+std::vector<u8> bpcs_unhide_message(Image& img, std::vector<size_t> const& bitplane_priority) {
+    auto planed_data = chunkify(img, bitplane_priority);
     auto formatted_data = unhide_formatted_message(planed_data);
     auto message = unformat_message(formatted_data);
     return message;
 }
 
 Measurements measure_capacity(float threshold, Image& img) {
+    auto& bitplane_priority = STANDARD_BITPLANE_PRIORITY;
+
     Measurements meas = {};
-    auto cover = chunkify(img);
+    auto cover = chunkify(img, bitplane_priority);
 
     size_t chunks_per_bitplane = cover.chunks.size() / 32;
     size_t chunk_index = 0;
@@ -258,8 +268,8 @@ TEST(bpcs, message_hiding) {
         }
     }
 
-    bpcs_hide_message(img, message);
-    auto extracted_message = bpcs_unhide_message(img);
+    bpcs_hide_message(img, message, STANDARD_BITPLANE_PRIORITY);
+    auto extracted_message = bpcs_unhide_message(img, STANDARD_BITPLANE_PRIORITY);
 
     ASSERT_EQ(message, extracted_message);
 }

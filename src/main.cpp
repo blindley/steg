@@ -14,7 +14,6 @@
 void print_usage(char const* exe_name);
 void print_help(char const* exe_name);
 
-
 void save_file(std::string const& filename, u8 const* data, size_t len);
 void save_file(std::string const& filename, std::vector<u8> const& data);
 std::vector<u8> load_file(std::string const& filename);
@@ -67,7 +66,7 @@ void main_impl(int argc, char** argv) {
             message = load_file(args.message_file);
         }
 
-        float threshold = bpcs_hide_message(cover_file, message);
+        float threshold = bpcs_hide_message(cover_file, message, STANDARD_BITPLANE_PRIORITY);
 
         if (args.output_file.empty()) {
             args.output_file = "data/steg-output.png";
@@ -82,7 +81,7 @@ void main_impl(int argc, char** argv) {
         debug_print(std::cout, steg_file);
         #endif
 
-        auto extracted_message = bpcs_unhide_message(steg_file);
+        auto extracted_message = bpcs_unhide_message(steg_file, STANDARD_BITPLANE_PRIORITY);
 
         if (args.output_file.empty()) {
             args.output_file = "data/message.dat";
