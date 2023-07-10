@@ -4,8 +4,113 @@
 #include <format>
 #include <iostream>
 #include <unordered_map>
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
+
+enum ARGUMENT_TYPE {
+    STRING_ARG, INTEGER_ARG, FLOAT_ARG
+};
+
+struct ArgSet {
+    std::set<std::string> flags;
+    std::map<std::string, ARGUMENT_TYPE> value_args;
+};
+
+struct ArgParser {
+    ArgParser(ArgSet const& arg_set, int argc, char** argv) {
+        std::vector<std::string> received_args(argv, argv + argc);
+
+        for (size_t i = 1; i < received_args.size(); i++) {
+            auto& arg = received_args[i];
+
+            if (arg_is_present(arg)) {
+                auto e = std::format("duplicate argument {}", arg);
+                throw std::runtime_error(e);
+            }
+
+            if (arg_set.flags.contains(arg)) {
+                flags.insert(arg);
+                continue;
+            }
+
+            if (arg_set.value_args.contains(arg)) {
+                ++i;
+                if (i == received_args.size() || received_args[i][0] == '-') {
+                    auto e = std::format("missing value for argument {}", received_args[i-1]);
+                    throw std::runtime_error(e);
+                }
+
+                auto arg_type = arg_set.value_args.at(received_args[i-1]);
+                auto& value = received_args[i];
+
+                if (arg_type == STRING_ARG) {
+                    string_args[arg] = value;
+                } else if (arg_type == INTEGER_ARG) {
+                    try { integer_args[arg] = std::stoi(value); }
+                    catch (...) {
+                        auto e = std::format("unexpected argument {}", value);
+                        throw std::runtime_error(e);
+                    }
+                } else if (arg_type == FLOAT_ARG) {
+                    try { float_args[arg] = std::stof(value); }
+                    catch (...) {
+                        auto e = std::format("unexpected argument {}", value);
+                        throw std::runtime_error(e);
+                    }
+                }
+                continue;
+            }
+
+            auto e = std::format("unexpected argument {}", arg);
+            throw std::runtime_error(e);
+        }
+    }
+
+    /// @brief Check if argument exists 
+    bool arg_is_present(std::string const& arg) {
+        return flags.contains(arg)
+                || string_args.contains(arg)
+                || integer_args.contains(arg)
+                || float_args.contains(arg);
+    }
+
+    /// @brief Count how many members of a list are present in arguments
+    ///
+    /// Useful for checking for required argument sets or mutually exclusive arguments
+    size_t count_present_args_among(std::vector<std::string> const& args) {
+        size_t count = 0;
+        for (auto& e : args) {
+            if (arg_is_present(e))
+                count++;
+        }
+        return count;
+    }
+
+    bool none_present(std::vector<std::string> const& args) {
+        return count_present_args_among(args) == 0;
+    }
+
+    bool all_present(std::vector<std::string> const& args) {
+        return count_present_args_among(args) == args.size();
+    }
+
+    bool all_or_none(std::vector<std::string> const& args) {
+        auto count = count_present_args_among(args);
+        return count == 0 || count == args.size();
+    }
+
+    bool exactly_one(std::vector<std::string> const& args) {
+        return count_present_args_among(args) == 1;
+    }
+
+    std::set<std::string> flags;
+    std::map<std::string, std::string> string_args;
+    std::map<std::string, int> integer_args;
+    std::map<std::string, float> float_args;
+};
+
 
 void debug_print(std::ostream& ostr, Args const& args) {
     ostr << "Args { ";
