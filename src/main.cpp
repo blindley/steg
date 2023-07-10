@@ -68,9 +68,10 @@ void main_impl(int argc, char** argv) {
         }
 
         // TODO: figure this out from command line arguments
-        u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
+        //  u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
 
-        float threshold = bpcs_hide_message(cover_file, message, rmax, gmax, bmax, amax);
+        float threshold = bpcs_hide_message(cover_file, message,
+            args.rmax, args.gmax, args.bmax, args.amax);
 
         if (args.output_file.empty()) {
             args.output_file = "data/steg-output.png";

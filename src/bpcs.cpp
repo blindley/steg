@@ -16,6 +16,8 @@
 #include "image.h"
 #include "datachunk.h"
 
+DataChunkArray chunkify(Image const& img, std::vector<size_t> const& bitplane_priority);
+
 u8 binary_to_gray_code(u8 binary) {
     return (binary >> 1) ^ binary;
 }
@@ -62,7 +64,36 @@ std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 ama
     return bitplane_priority;
 }
 
-DataChunkArray chunkify(Image& img, std::vector<size_t> const& bitplane_priority) {
+#include <iostream>
+
+std::vector<size_t> find_bitplane_priority(Image const& img) {
+    // TODO: Chunifying the image twice, could probably improve this
+    auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
+    auto chunks = chunkify(img, bitplane_priority);
+    size_t signature_chunks_found = 0;
+    auto blank_signature_chunks = generate_signature_chunks(0, 0, 0, 0);
+    for (auto& e : chunks) {
+        if (std::memcmp(blank_signature_chunks[signature_chunks_found].bytes, e.bytes, 7) == 0) {
+            blank_signature_chunks[signature_chunks_found].bytes[7] = e.bytes[7];
+            signature_chunks_found++;
+            if (signature_chunks_found == 2) {
+                u8 max0 = blank_signature_chunks[0].bytes[7];
+                u8 max1 = blank_signature_chunks[1].bytes[7];
+                u8 rmax = (max0 >> 4) & 0x0F;
+                u8 gmax = max0 & 0x0F;
+                u8 bmax = (max1 >> 4) & 0x0F;
+                u8 amax = max1 & 0x0F;
+                std::cout << "rmax = " << (int)rmax << ", gmax = " << (int)gmax;
+                std::cout << ", bmax = " << (int)bmax << ", amax = " << (int)amax << "\n";
+                return generate_bitplane_priority(rmax, gmax, bmax, amax);
+            }
+        }
+    }
+
+    throw std::runtime_error("signature chunks not found");
+}
+
+DataChunkArray chunkify(Image const& img, std::vector<size_t> const& bitplane_priority) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
@@ -153,11 +184,9 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data,
 }
 
 void hide_formatted_message(float threshold, DataChunkArray& cover,
-    DataChunkArray const& formatted_message)
+    DataChunkArray const& formatted_message,
+    u8 rmax, u8 gmax, u8 bmax, u8 amax)
 {
-    // TODO: figure these numbers out dynamically
-    u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
-
     auto signature_chunks = generate_signature_chunks(rmax, gmax, bmax, amax);
 
     size_t signature_chunk_index = 0;
@@ -216,7 +245,7 @@ float bpcs_hide_message(Image& img, std::vector<u8> const& message,
     CDF cdf(planed_data);
     float threshold = cdf.max_threshold_to_store(formatted_data.chunks.size());
     threshold = std::min(0.5f, threshold);
-    hide_formatted_message(threshold, planed_data, formatted_data);
+    hide_formatted_message(threshold, planed_data, formatted_data, rmax, gmax, bmax, amax);
     de_chunkify(img, planed_data, bitplane_priority);
     gray_code_to_binary_inplace(img.pixel_data);
     return threshold;
@@ -225,9 +254,7 @@ float bpcs_hide_message(Image& img, std::vector<u8> const& message,
 std::vector<u8> bpcs_unhide_message(Image& img) {
     binary_to_gray_code_inplace(img.pixel_data);
 
-    // TODO: figure this out dynamically
-    u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
-    auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
+    auto bitplane_priority = find_bitplane_priority(img);
 
     auto planed_data = chunkify(img, bitplane_priority);
     auto formatted_data = unhide_formatted_message(planed_data);
@@ -287,18 +314,12 @@ TEST(bpcs, gray_code_conversions) {
     }
 }
 
-TEST(bpcs, message_hiding) {
+Image generate_random_image(size_t width, size_t height) {
     std::random_device rd;
     std::mt19937_64 gen(rd());
-
-    std::vector<u8> message;
-    for (size_t i = 0; i < 511; i++) {
-        message.push_back(gen());
-    }
-
     Image img = {};
-    img.width = 257;
-    img.height = 135;
+    img.width = width;
+    img.height = height;
     img.pixel_data.resize(img.width * img.height * 4);
     for (size_t chunk_start_y = 0; chunk_start_y + 8 <= img.height; chunk_start_y += 8) {
         for (size_t chunk_start_x = 0; chunk_start_x + 8 <= img.width; chunk_start_x += 8) {
@@ -318,6 +339,19 @@ TEST(bpcs, message_hiding) {
         }
     }
 
+    return img;
+}
+
+TEST(bpcs, message_hiding) {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+
+    std::vector<u8> message;
+    for (size_t i = 0; i < 511; i++) {
+        message.push_back(gen());
+    }
+
+    auto img = generate_random_image(257, 135);
     auto img_original = img;
 
     bpcs_hide_message(img, message, 8, 8, 8, 8);
@@ -325,17 +359,37 @@ TEST(bpcs, message_hiding) {
 
     ASSERT_EQ(message, extracted_message);
 
-    // img = img_original;
+    img = img_original;
 
-    // auto bitplane_priority = STANDARD_BITPLANE_PRIORITY;
-    // std::shuffle(bitplane_priority.begin(), bitplane_priority.end(), gen);
-    // bitplane_priority.resize(23);
+    bpcs_hide_message(img, message, 7, 6, 5, 4);
+    auto extracted_message2 = bpcs_unhide_message(img);
 
-    // bpcs_hide_message(img, message, bitplane_priority);
-    // auto extracted_message2 = bpcs_unhide_message(img, bitplane_priority);
-
-    // ASSERT_EQ(message, extracted_message2);
+    ASSERT_EQ(message, extracted_message2);
 }
 
+TEST(bpcs, generate_bitplane_priority) {
+    auto bitplane_priority = generate_bitplane_priority(0, 0, 0, 0);
+    ASSERT_EQ(bitplane_priority.empty(), true);
+
+    bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
+    std::vector<size_t> expected_bitplane_priority = {
+        7, 15, 23, 31, 6, 14, 22, 30,
+        5, 13, 21, 29, 4, 12, 20, 28,
+        3, 11, 19, 27, 2, 10, 18, 26,
+        1, 9, 17, 25, 0, 8, 16, 24,
+    };
+
+    ASSERT_EQ(bitplane_priority, expected_bitplane_priority);
+
+    expected_bitplane_priority = {
+        7, 15, 23, 31,
+           14, 22, 30,
+               21, 29,
+                   28,
+    };
+    bitplane_priority = generate_bitplane_priority(1, 2, 3, 4);
+
+    ASSERT_EQ(bitplane_priority, expected_bitplane_priority);
+}
 
 #endif // STEG_TEST

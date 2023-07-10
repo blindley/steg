@@ -4,6 +4,8 @@
 #include <string>
 #include <ostream>
 
+#include "utility.h"
+
 struct Args {
     bool help;
     bool extract;
@@ -14,6 +16,10 @@ struct Args {
     std::string stego_file;
     std::string output_file;
     float threshold;
+    u8 rmax;
+    u8 gmax;
+    u8 bmax;
+    u8 amax;
 };
 
 void debug_print(std::ostream& ostr, Args const& args);

@@ -26,10 +26,23 @@ float parse_threshold(std::string s) {
     } catch (...) {}
 
     if (!(result >= 0.0f) || !(result <= 0.5f)) {
-        throw "threshold should be a value in [0, 0.5]";
+        throw std::runtime_error("threshold should be a value in [0, 0.5]");
     }
 
     return result;
+}
+
+u8 parse_channel_max_bitplane(std::string max_str) {
+    if (max_str.empty())
+        return 8;
+    try {
+        int result = std::stoi(max_str);
+        if (result < 0 || result > 8)
+            throw std::runtime_error("r/g/b/amax must be integer in [0,8]");
+        return (u8)result;
+    } catch (...) {
+        throw std::runtime_error("r/g/b/amax must be integer in [0,8]");
+    }
 }
 
 Args parse_args(int argc, char** argv) {
@@ -39,7 +52,10 @@ Args parse_args(int argc, char** argv) {
 
     std::unordered_map<std::string, std::string> args_map;
     std::string boolean_arg_list[] = {"--hide", "--extract", "--measure", "--help"};
-    std::string args_with_args[] = {"-m", "-c", "-s", "-o", "-t"};
+    std::string args_with_args[] = {
+        "-m", "-c", "-s", "-o", "-t",
+        "--rmax", "--gmax", "--bmax", "--amax",
+    };
 
     for (size_t i = 1; i < argc; i++) {
         if (contains(boolean_arg_list, arg_vec[i])) {
@@ -69,7 +85,13 @@ Args parse_args(int argc, char** argv) {
     args.cover_file = args_map["-c"];
     args.stego_file = args_map["-s"];
     args.output_file = args_map["-o"];
+
     auto threshold_str = args_map["-t"];
+
+    auto rmax_str = args_map["--rmax"];
+    auto gmax_str = args_map["--gmax"];
+    auto bmax_str = args_map["--bmax"];
+    auto amax_str = args_map["--amax"];
 
     if (!args.help && !args.hide && !args.extract && !args.measure) {
         throw "No mode selected (try --help)";
@@ -106,6 +128,11 @@ Args parse_args(int argc, char** argv) {
 
         if (!threshold_str.empty())
             throw "Unexpected argument '-t' in hide mode";
+
+        args.rmax = parse_channel_max_bitplane(rmax_str);
+        args.gmax = parse_channel_max_bitplane(gmax_str);
+        args.bmax = parse_channel_max_bitplane(bmax_str);
+        args.amax = parse_channel_max_bitplane(amax_str);
     }
 
     if (args.extract) {
