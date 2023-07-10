@@ -2,6 +2,7 @@
 #include "datachunk.h"
 // #include "bpcs.h"
 #include "utility.h"
+#include "message.h"
 
 #include <stdexcept>
 

@@ -2,6 +2,7 @@
 #include "image.h"
 #include "utility.h"
 #include "bpcs.h"
+#include "message.h"
 
 #include <iostream>
 #include <vector>
@@ -66,7 +67,10 @@ void main_impl(int argc, char** argv) {
             message = load_file(args.message_file);
         }
 
-        float threshold = bpcs_hide_message(cover_file, message, STANDARD_BITPLANE_PRIORITY);
+        // TODO: figure this out from command line arguments
+        u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
+
+        float threshold = bpcs_hide_message(cover_file, message, rmax, gmax, bmax, amax);
 
         if (args.output_file.empty()) {
             args.output_file = "data/steg-output.png";
@@ -81,7 +85,7 @@ void main_impl(int argc, char** argv) {
         debug_print(std::cout, steg_file);
         #endif
 
-        auto extracted_message = bpcs_unhide_message(steg_file, STANDARD_BITPLANE_PRIORITY);
+        auto extracted_message = bpcs_unhide_message(steg_file);
 
         if (args.output_file.empty()) {
             args.output_file = "data/message.dat";

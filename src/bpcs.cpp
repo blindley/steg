@@ -1,5 +1,5 @@
 
-
+#include <array>
 #include <vector>
 #include <cstdlib>
 #include <algorithm>
@@ -15,13 +15,6 @@
 #include "utility.h"
 #include "image.h"
 #include "datachunk.h"
-
-std::vector<size_t> const STANDARD_BITPLANE_PRIORITY = {
-    7, 15, 23, 31, 6, 14, 22, 30,
-    5, 13, 21, 29, 4, 12, 20, 28,
-    3, 11, 19, 27, 2, 10, 18, 26,
-    1, 9, 17, 25, 0, 8, 16, 24
-};
 
 u8 binary_to_gray_code(u8 binary) {
     return (binary >> 1) ^ binary;
@@ -42,14 +35,39 @@ void gray_code_to_binary_inplace(std::vector<u8>& vec) {
     std::transform(vec.begin(), vec.end(), vec.begin(), gray_code_to_binary);
 }
 
+std::array<DataChunk, 2> generate_signature_chunks(u8 rmax, u8 gmax, u8 bmax, u8 amax) {
+    std::array<DataChunk, 2> chunks;
+    std::memcpy(chunks[0].bytes, SIG14, 7);
+    std::memcpy(chunks[1].bytes, SIG14 + 7, 7);
+    chunks[0].bytes[7] = (rmax << 4) | gmax;
+    chunks[1].bytes[7] = (bmax << 4) | amax;
+
+    return chunks;
+}
+
+std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 amax) {
+    std::vector<size_t> bitplane_priority;
+
+    for (size_t i = 0; i < 8; i++) {
+        if (i < rmax)
+            bitplane_priority.push_back(7 - i);
+        if (i < gmax)
+            bitplane_priority.push_back(15 - i);
+        if (i < bmax)
+            bitplane_priority.push_back(23 - i);
+        if (i < amax)
+            bitplane_priority.push_back(31 - i);
+    }
+
+    return bitplane_priority;
+}
+
 DataChunkArray chunkify(Image& img, std::vector<size_t> const& bitplane_priority) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
 
     size_t num_bitplanes = bitplane_priority.size();
-
-    binary_to_gray_code_inplace(img.pixel_data);
 
     DataChunkArray planed_data;
     planed_data.chunks.resize(chunks_in_width * chunks_in_height * num_bitplanes);
@@ -132,21 +150,29 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data,
             }
         }
     }
-
-    gray_code_to_binary_inplace(img.pixel_data);
 }
 
 void hide_formatted_message(float threshold, DataChunkArray& cover,
     DataChunkArray const& formatted_message)
 {
+    // TODO: figure these numbers out dynamically
+    u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
+
+    auto signature_chunks = generate_signature_chunks(rmax, gmax, bmax, amax);
+
+    size_t signature_chunk_index = 0;
     auto message_chunk_iter = formatted_message.begin();
     for (auto& cover_chunk : cover) {
         if (message_chunk_iter == formatted_message.end())
             break;
         auto complexity = cover_chunk.measure_complexity();
         if (complexity >= threshold) {
-            cover_chunk = *message_chunk_iter;
-            ++message_chunk_iter;
+            if (signature_chunk_index < 2) {
+                cover_chunk = signature_chunks[signature_chunk_index++];
+            } else {
+                cover_chunk = *message_chunk_iter;
+                ++message_chunk_iter;
+            }
         }
     }
 
@@ -154,16 +180,24 @@ void hide_formatted_message(float threshold, DataChunkArray& cover,
         auto chunks_hidden = message_chunk_iter - formatted_message.begin();
         auto bits_hidden = chunks_hidden * 63 - 32;
         auto bytes_hidden = bits_hidden / 8;
-        throw std::format("max hiding capacity ({} bytes) exceeded", bytes_hidden);
+        throw std::format("max hiding capacity ({} bytes) exceeded (that number is wrong)",
+            bytes_hidden);
     }
 }
 
 DataChunkArray unhide_formatted_message(DataChunkArray const& cover) {
     DataChunkArray formatted_message;
+    size_t signature_chunk_index = 0;
     for (auto& cover_chunk : cover) {
         auto complexity = cover_chunk.measure_complexity();
         if (complexity >= 0.5) {
-            formatted_message.chunks.push_back(cover_chunk);
+            if (signature_chunk_index < 2) {
+                // the signature chunks would have already been
+                // checked by this point
+                signature_chunk_index++;
+            } else {
+                formatted_message.chunks.push_back(cover_chunk);
+            }
         }
     }
 
@@ -171,19 +205,30 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover) {
 }
 
 float bpcs_hide_message(Image& img, std::vector<u8> const& message,
-    std::vector<size_t> const& bitplane_priority)
+    u8 rmax, u8 gmax, u8 bmax, u8 amax)
 {
     auto formatted_data = format_message(message);
+    binary_to_gray_code_inplace(img.pixel_data);
+
+    auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
+
     auto planed_data = chunkify(img, bitplane_priority);
     CDF cdf(planed_data);
     float threshold = cdf.max_threshold_to_store(formatted_data.chunks.size());
     threshold = std::min(0.5f, threshold);
     hide_formatted_message(threshold, planed_data, formatted_data);
     de_chunkify(img, planed_data, bitplane_priority);
+    gray_code_to_binary_inplace(img.pixel_data);
     return threshold;
 }
 
-std::vector<u8> bpcs_unhide_message(Image& img, std::vector<size_t> const& bitplane_priority) {
+std::vector<u8> bpcs_unhide_message(Image& img) {
+    binary_to_gray_code_inplace(img.pixel_data);
+
+    // TODO: figure this out dynamically
+    u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
+    auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
+
     auto planed_data = chunkify(img, bitplane_priority);
     auto formatted_data = unhide_formatted_message(planed_data);
     auto message = unformat_message(formatted_data);
@@ -191,7 +236,7 @@ std::vector<u8> bpcs_unhide_message(Image& img, std::vector<size_t> const& bitpl
 }
 
 Measurements measure_capacity(float threshold, Image& img) {
-    auto& bitplane_priority = STANDARD_BITPLANE_PRIORITY;
+    auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
 
     Measurements meas = {};
     auto cover = chunkify(img, bitplane_priority);
@@ -275,21 +320,21 @@ TEST(bpcs, message_hiding) {
 
     auto img_original = img;
 
-    bpcs_hide_message(img, message, STANDARD_BITPLANE_PRIORITY);
-    auto extracted_message = bpcs_unhide_message(img, STANDARD_BITPLANE_PRIORITY);
+    bpcs_hide_message(img, message, 8, 8, 8, 8);
+    auto extracted_message = bpcs_unhide_message(img);
 
     ASSERT_EQ(message, extracted_message);
 
-    img = img_original;
+    // img = img_original;
 
-    auto bitplane_priority = STANDARD_BITPLANE_PRIORITY;
-    std::shuffle(bitplane_priority.begin(), bitplane_priority.end(), gen);
-    bitplane_priority.resize(23);
+    // auto bitplane_priority = STANDARD_BITPLANE_PRIORITY;
+    // std::shuffle(bitplane_priority.begin(), bitplane_priority.end(), gen);
+    // bitplane_priority.resize(23);
 
-    bpcs_hide_message(img, message, bitplane_priority);
-    auto extracted_message2 = bpcs_unhide_message(img, bitplane_priority);
+    // bpcs_hide_message(img, message, bitplane_priority);
+    // auto extracted_message2 = bpcs_unhide_message(img, bitplane_priority);
 
-    ASSERT_EQ(message, extracted_message2);
+    // ASSERT_EQ(message, extracted_message2);
 }
 
 
