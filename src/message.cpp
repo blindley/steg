@@ -9,6 +9,18 @@
 u8 const SIGNATURE[] = { 0x2F, 0x64, 0xA9 };
 u8 const SIG14[] = { 53, 219, 170, 213, 10, 183, 76, 85, 179, 82, 181, 170, 55, 85 };
 
+u32 u32_from_bytes_be(u8 const* bytes) {
+    u32 result = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+    return result;
+}
+
+void u32_to_bytes_be(u32 value, u8* bytes_out) {
+    bytes_out[0] = (value >> 24);
+    bytes_out[1] = (value >> 16);
+    bytes_out[2] = (value >> 8);
+    bytes_out[3] = value;
+}
+
 size_t calculate_formatted_message_size(size_t message_size) {
     size_t formatted_size = message_size + sizeof(SIGNATURE) + sizeof(u32);
     formatted_size = (formatted_size + 62) / 63 * 64;
