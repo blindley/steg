@@ -209,8 +209,9 @@ void hide_formatted_message(float threshold, DataChunkArray& cover,
         auto chunks_hidden = message_chunk_iter - formatted_message.begin();
         auto bits_hidden = chunks_hidden * 63 - 32;
         auto bytes_hidden = bits_hidden / 8;
-        throw std::format("max hiding capacity ({} bytes) exceeded (that number is wrong)",
+        auto err = std::format("max hiding capacity ({} bytes) exceeded (that number is wrong)",
             bytes_hidden);
+        throw std::runtime_error(err);
     }
 }
 

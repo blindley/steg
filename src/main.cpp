@@ -104,7 +104,8 @@ void main_impl(int argc, char** argv) {
             std::cout << '\n';
         }
     } else {
-        throw "you shouldn't be here!";
+        auto err = "you shouldn't be here!";
+        throw std::logic_error(err);
     }
 }
 
@@ -156,13 +157,15 @@ void print_help(char const* argv0) {
 void save_file(std::string const& filename, u8 const* data, size_t len) {
     std::ofstream ofstr(filename, std::ios::binary);
     if (!ofstr) {
-        throw std::format("unable to open {} for writing", filename);
+        auto err = std::format("unable to open {} for writing", filename);
+        throw std::runtime_error(err);
     }
 
     ofstr.write((char const*)data, len);
 
     if (!ofstr) {
-        throw std::format("error writing to {}", filename);
+        auto err = std::format("error writing to {}", filename);
+        throw std::runtime_error(err);
     }
 }
 
@@ -174,7 +177,8 @@ std::vector<u8> load_file(std::string const& filename) {
     std::ifstream ifstr(filename, std::ios::binary);
 
     if (!ifstr) {
-        throw std::format("unable to open {}", filename);
+        auto err = std::format("unable to open {}", filename);
+        throw std::runtime_error(err);
     }
 
     ifstr.seekg(0, std::ios::end);
@@ -182,7 +186,8 @@ std::vector<u8> load_file(std::string const& filename) {
     ifstr.seekg(0, std::ios::beg);
 
     if (!ifstr) {
-        throw std::format("error reading {}", filename);
+        auto err = std::format("error reading {}", filename);
+        throw std::runtime_error(err);
     }
 
     std::vector<u8> data;
@@ -191,7 +196,8 @@ std::vector<u8> load_file(std::string const& filename) {
     ifstr.read((char*)data.data(), size);
 
     if (!ifstr) {
-        throw std::format("error reading {}", filename);
+        auto err = std::format("error reading {}", filename);
+        throw std::runtime_error(err);
     }
 
     return data;

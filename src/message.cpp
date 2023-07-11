@@ -99,8 +99,7 @@ std::vector<u8> unformat_message_v2(DataChunkArray formatted_data) {
 
     size_t in_index = 1;
     if (std::memcmp(byte_ptr + in_index, SIGNATURE, sizeof(SIGNATURE)) != 0) {
-        std::runtime_error e("invalid signature");
-        throw e;
+        throw std::runtime_error("invalid signature");
     }
     in_index += sizeof(SIGNATURE);
 
