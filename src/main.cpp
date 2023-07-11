@@ -123,10 +123,14 @@ void print_usage(char const* exe_name) {
     auto exe_short_name = get_exe_short_name(exe_name);
 
     std::cout << "Usage:\n";
-    std::cout << "    " << exe_short_name << " --hide -m <message file | --random> -c <coverfile> [-o <stego file>]\n";
-    std::cout << "    " << exe_short_name << " --extract -s <stego file> [-o <message file>]\n";
+    std::cout << "    " << exe_short_name
+        << " --hide -m <message file | --random> -c <coverfile> -o <stego file> "
+        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
+    std::cout << "    " << exe_short_name << " --extract -s <stego file> -o <message file>\n";
     std::cout << "    " << exe_short_name << " --measure -c <cover file> -t <threshold>\n";
     std::cout << "    " << exe_short_name << " --help\n";
+
+    std::cout << "\n(try --help for more details)\n";
 }
 
 void print_help(char const* argv0) {
@@ -144,6 +148,10 @@ void print_help(char const* argv0) {
     std::cout << "  -m <message file>   Message file to hide\n";
     std::cout << "  -m --random         Fill cover file with random data\n";
     std::cout << "  -o <stego file>     Name of output stego image file\n";
+    std::cout << "  --rmax <n>          Max red bitplane to hide in ([0,8], default=8)\n";
+    std::cout << "  --gmax <n>          Max green bitplane to hide in ([0,8], default=8)\n";
+    std::cout << "  --bmax <n>          Max blue bitplane to hide in ([0,8], default=8)\n";
+    std::cout << "  --amax <n>          Max alpha bitplane to hide in ([0,8], default=8)\n";
 
     std::cout << "\nExtract Mode Options:\n";
     std::cout << "  -s <stego file>     Stego file to extract hidden message from\n";
