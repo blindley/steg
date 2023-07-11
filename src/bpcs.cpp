@@ -64,8 +64,6 @@ std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 ama
     return bitplane_priority;
 }
 
-#include <iostream>
-
 std::vector<size_t> find_bitplane_priority(Image const& img) {
     // TODO: Chunifying the image twice, could probably improve this
     auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
@@ -83,8 +81,6 @@ std::vector<size_t> find_bitplane_priority(Image const& img) {
                 u8 gmax = max0 & 0x0F;
                 u8 bmax = (max1 >> 4) & 0x0F;
                 u8 amax = max1 & 0x0F;
-                std::cout << "rmax = " << (int)rmax << ", gmax = " << (int)gmax;
-                std::cout << ", bmax = " << (int)bmax << ", amax = " << (int)amax << "\n";
                 return generate_bitplane_priority(rmax, gmax, bmax, amax);
             }
         }
