@@ -45,18 +45,10 @@ int main(int argc, char** argv) {
 void main_impl(int argc, char** argv) {
     auto args = parse_args(argc, argv);
 
-    #ifdef DEBUG
-    debug_print(std::cout, args);
-    #endif
-
     if (args.help) {
         print_help(argv[0]);
     } else if (args.hide) {
         auto cover_file = Image::load(args.cover_file);
-
-        #ifdef DEBUG
-        debug_print(std::cout, cover_file);
-        #endif
 
         std::vector<u8> message;
         if (args.message_file == "--random") {
@@ -66,9 +58,6 @@ void main_impl(int argc, char** argv) {
         } else {
             message = load_file(args.message_file);
         }
-
-        // TODO: figure this out from command line arguments
-        //  u8 rmax = 8, gmax = 8, bmax = 8, amax = 8;
 
         float threshold = bpcs_hide_message(cover_file, message,
             args.rmax, args.gmax, args.bmax, args.amax);

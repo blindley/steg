@@ -2,277 +2,181 @@
 #include "utility.h"
 
 #include <format>
-#include <iostream>
-#include <unordered_map>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
-enum ARGUMENT_TYPE {
-    STRING_ARG, INTEGER_ARG, FLOAT_ARG
-};
-
-struct ArgSet {
+struct RawArgs {
     std::set<std::string> flags;
-    std::map<std::string, ARGUMENT_TYPE> value_args;
-};
+    std::map<std::string, std::string> value_args;
 
-struct ArgParser {
-    ArgParser(ArgSet const& arg_set, int argc, char** argv) {
-        std::vector<std::string> received_args(argv, argv + argc);
+    bool arg_is_present(std::string const& arg_name) const {
+        return flags.contains(arg_name) || value_args.contains(arg_name);
+    }
 
-        for (size_t i = 1; i < received_args.size(); i++) {
-            auto& arg = received_args[i];
-
-            if (arg_is_present(arg)) {
-                auto e = std::format("duplicate argument {}", arg);
-                throw std::runtime_error(e);
-            }
-
-            if (arg_set.flags.contains(arg)) {
-                flags.insert(arg);
-                continue;
-            }
-
-            if (arg_set.value_args.contains(arg)) {
-                ++i;
-                if (i == received_args.size() || received_args[i][0] == '-') {
-                    auto e = std::format("missing value for argument {}", received_args[i-1]);
-                    throw std::runtime_error(e);
-                }
-
-                auto arg_type = arg_set.value_args.at(received_args[i-1]);
-                auto& value = received_args[i];
-
-                if (arg_type == STRING_ARG) {
-                    string_args[arg] = value;
-                } else if (arg_type == INTEGER_ARG) {
-                    try { integer_args[arg] = std::stoi(value); }
-                    catch (...) {
-                        auto e = std::format("unexpected argument {}", value);
-                        throw std::runtime_error(e);
-                    }
-                } else if (arg_type == FLOAT_ARG) {
-                    try { float_args[arg] = std::stof(value); }
-                    catch (...) {
-                        auto e = std::format("unexpected argument {}", value);
-                        throw std::runtime_error(e);
-                    }
-                }
-                continue;
-            }
-
-            auto e = std::format("unexpected argument {}", arg);
-            throw std::runtime_error(e);
+    std::string get_value_or_throw(std::string const& arg_name) const {
+        try {
+            return value_args.at(arg_name);
+        } catch(...) {
+            auto err = std::format("missing argument {}", arg_name);
+            throw std::runtime_error(err);
         }
     }
 
-    /// @brief Check if argument exists 
-    bool arg_is_present(std::string const& arg) {
-        return flags.contains(arg)
-                || string_args.contains(arg)
-                || integer_args.contains(arg)
-                || float_args.contains(arg);
-    }
-
-    /// @brief Count how many members of a list are present in arguments
-    ///
-    /// Useful for checking for required argument sets or mutually exclusive arguments
-    size_t count_present_args_among(std::vector<std::string> const& args) {
-        size_t count = 0;
-        for (auto& e : args) {
-            if (arg_is_present(e))
-                count++;
+    int get_integer_or_default_with_range(std::string const& arg_name,
+        int default_, int low, int high) const
+    {
+        if (!value_args.contains(arg_name)) {
+            return default_;
         }
-        return count;
+
+        try {
+            auto value = std::stoi(value_args.at(arg_name));
+            if (value >= low && value <= high) {
+                return value;
+            }
+        } catch(...) {}
+        auto err = std::format("{} should be integer in range [{}, {}]", arg_name, low, high);
+        throw std::runtime_error(err);
     }
 
-    bool none_present(std::vector<std::string> const& args) {
-        return count_present_args_among(args) == 0;
-    }
+    float get_float_or_default_with_range(std::string const& arg_name,
+        float default_, float low, float high) const
+    {
+        if (!value_args.contains(arg_name)) {
+            return default_;
+        }
 
-    bool all_present(std::vector<std::string> const& args) {
-        return count_present_args_among(args) == args.size();
+        try {
+            auto value = std::stof(value_args.at(arg_name));
+            if (value >= low && value <= high) {
+                return value;
+            }
+        } catch(...) {}
+        auto err = std::format("{} should be real number in range [{}, {}]", arg_name, low, high);
+        throw std::runtime_error(err);
     }
-
-    bool all_or_none(std::vector<std::string> const& args) {
-        auto count = count_present_args_among(args);
-        return count == 0 || count == args.size();
-    }
-
-    bool exactly_one(std::vector<std::string> const& args) {
-        return count_present_args_among(args) == 1;
-    }
-
-    std::set<std::string> flags;
-    std::map<std::string, std::string> string_args;
-    std::map<std::string, int> integer_args;
-    std::map<std::string, float> float_args;
 };
 
+RawArgs collect_raw_args(int argc, char** _argv,
+    std::set<std::string> const& flag_names, std::set<std::string> value_arg_names)
+{
+    std::set<std::string> flags;
+    std::map<std::string, std::string> value_args;
 
-void debug_print(std::ostream& ostr, Args const& args) {
-    ostr << "Args { ";
-    ostr << std::format("extract={} ", args.extract);
-    ostr << std::format("hide={} ", args.hide);
-    ostr << std::format("measure={} ", args.measure);
-    ostr << std::format("message_file=\"{}\" ", args.message_file);
-    ostr << std::format("cover_file=\"{}\" ", args.cover_file);
-    ostr << std::format("stego_file=\"{}\" ", args.stego_file);
-    ostr << std::format("output_file=\"{}\" ", args.output_file);
-    ostr << "}\n";
-}
+    std::vector<std::string> argv(_argv, _argv + argc);
 
-float parse_threshold(std::string s) {
-    float result = -1.0f;
-    try {
-        result = std::stof(s);
-    } catch (...) {}
+    for (size_t i = 1; i < argv.size(); i++) {
+        if (flags.contains(argv[i]) || value_args.contains(argv[i])) {
+            auto err = std::format("duplicate argument {}", argv[i]);
+            throw std::runtime_error(err);
+        }
 
-    if (!(result >= 0.0f) || !(result <= 0.5f)) {
-        throw std::runtime_error("threshold should be a value in [0, 0.5]");
+        if (flag_names.contains(argv[i])) {
+            flags.insert(argv[i]);
+            continue;
+        }
+
+        if (value_arg_names.contains(argv[i])) {
+            ++i;
+            if (i == argv.size()) {
+                auto err = std::format("unexpected end of argument list. missing value for {}", argv[i-1]);
+                throw std::runtime_error(err);
+            }
+
+            value_args[argv[i-1]] = argv[i];
+            continue;
+        }
+
+        auto err = std::format("unexpected argument {}", argv[i]);
+        throw std::runtime_error(err);
     }
 
-    return result;
-}
+    RawArgs collection;
+    collection.flags = std::move(flags);
+    collection.value_args = std::move(value_args);
 
-u8 parse_channel_max_bitplane(std::string max_str) {
-    if (max_str.empty())
-        return 8;
-    try {
-        int result = std::stoi(max_str);
-        if (result < 0 || result > 8)
-            throw std::runtime_error("r/g/b/amax must be integer in [0,8]");
-        return (u8)result;
-    } catch (...) {
-        throw std::runtime_error("r/g/b/amax must be integer in [0,8]");
-    }
+    return collection;
 }
 
 Args parse_args(int argc, char** argv) {
+    auto raw_args = collect_raw_args(argc, argv,
+        {"--hide", "--extract", "--measure", "--help"},
+        {"-m", "-c", "-o", "-s", "-t", "--rmax", "--gmax", "--bmax", "--amax"}
+    );
+
     Args args = {};
 
-    std::vector<std::string> arg_vec(argv, argv + argc);
-
-    std::unordered_map<std::string, std::string> args_map;
-    std::string boolean_arg_list[] = {"--hide", "--extract", "--measure", "--help"};
-    std::string args_with_args[] = {
-        "-m", "-c", "-s", "-o", "-t",
-        "--rmax", "--gmax", "--bmax", "--amax",
-    };
-
-    for (size_t i = 1; i < argc; i++) {
-        if (contains(boolean_arg_list, arg_vec[i])) {
-            args_map[arg_vec[i]] = "";
-        } else if (contains(args_with_args, arg_vec[i])) {
-            if (args_map.contains(arg_vec[i])) {
-                throw std::format("Duplicate '{}' argument", arg_vec[i]);
-            }
-
-            i++;
-            if (i == argc) {
-                throw std::format("Unexpected end of argument list after '{}'", arg_vec[i-1]);
-            }
-
-            args_map[arg_vec[i-1]] = arg_vec[i];
-        } else {
-            auto error = std::format("Unexpected argument '{}'", arg_vec[i]);
-            throw error;
-        }
-    }
-
-    args.help = args_map.contains("--help");
-    args.hide = args_map.contains("--hide");
-    args.extract = args_map.contains("--extract");
-    args.measure = args_map.contains("--measure");
-    args.message_file = args_map["-m"];
-    args.cover_file = args_map["-c"];
-    args.stego_file = args_map["-s"];
-    args.output_file = args_map["-o"];
-
-    auto threshold_str = args_map["-t"];
-
-    auto rmax_str = args_map["--rmax"];
-    auto gmax_str = args_map["--gmax"];
-    auto bmax_str = args_map["--bmax"];
-    auto amax_str = args_map["--amax"];
-
-    if (!args.help && !args.hide && !args.extract && !args.measure) {
-        throw "No mode selected (try --help)";
-    }
-
-    if (args.help) {
-        // ignore all other arguments
-        args = {};
+    if (raw_args.arg_is_present("--help")) {
+        // if help is present, we don't care about anything else
         args.help = true;
         return args;
     }
 
+    args.hide = raw_args.arg_is_present("--hide");
+    args.extract = raw_args.arg_is_present("--extract");
+    args.measure = raw_args.arg_is_present("--measure");
+
+    int num_modes = (int)args.hide + (int)args.extract + (int)args.measure;
+    if (num_modes == 0) {
+        auto err = std::format("no mode selected (--hide, --extract or --measure)");
+        throw std::runtime_error(err);
+    }
+
+    if (num_modes > 1) {
+        auto err = "multiple modes selected (choose one of --hide, --extract or --measure)";
+        throw std::runtime_error(err);
+    }
+
+    std::set<std::string> required_args;
+    std::set<std::string> allowed_args;
+
     if (args.hide) {
-        if (args.extract)
-            throw "Mode --hide not compatible with mode --extract";
-        if (args.measure)
-            throw "Mode --hide not compatible with mode --measure";
+        required_args = {"--hide", "-m", "-c", "-o"};
+        allowed_args = {"--rmax", "--gmax", "--bmax", "--amax"};
+    } else if (args.extract) {
+        required_args = {"--extract", "-s", "-o"};
+    } else if (args.measure) {
+        required_args = {"--measure", "-c", "-t"};
     }
 
-    if (args.extract) {
-        if (args.measure)
-            throw "Mode --extract not compatible with mode --measure";
+    allowed_args.insert(required_args.begin(), required_args.end());
+
+    for (auto& arg : required_args) {
+        if (!raw_args.arg_is_present(arg)) {
+            auto err = std::format("missing argument {}", arg);
+            throw std::runtime_error(err);
+        }
+    }
+
+    auto all_args = raw_args.flags;
+    for (auto& kv : raw_args.value_args) {
+        all_args.insert(kv.first);
+    }
+
+    for (auto& arg : all_args) {
+        if (!allowed_args.contains(arg)) {
+            auto err = std::format("unexpected argument {}", arg);
+            throw std::runtime_error(err);
+        }
     }
 
     if (args.hide) {
-        if (args.message_file.empty())
-            throw "Missing '-m' argument";
-
-        if (args.cover_file.empty())
-            throw "Missing '-c'";
-
-        if (!args.stego_file.empty())
-            throw "Unexpected argument '-s' in hide mode";
-
-        if (!threshold_str.empty())
-            throw "Unexpected argument '-t' in hide mode";
-
-        args.rmax = parse_channel_max_bitplane(rmax_str);
-        args.gmax = parse_channel_max_bitplane(gmax_str);
-        args.bmax = parse_channel_max_bitplane(bmax_str);
-        args.amax = parse_channel_max_bitplane(amax_str);
-    }
-
-    if (args.extract) {
-        if (args.stego_file.empty())
-            throw "Missing '-s' argument";
-
-        if (!args.message_file.empty())
-            throw "Unexpected argument '-m' in extract mode";
-
-        if (!args.cover_file.empty())
-            throw "Unexpected argument '-c' in extract mode";
-
-        if (!threshold_str.empty())
-            throw "Unexpected argument '-t' in hide mode";
-    }
-
-    if (args.measure) {
-        if (args.cover_file.empty())
-            throw "Missing '-c' argument";
-
-        if (threshold_str.empty())
-            throw "Missing '-t' argument";
-
-        if (!args.message_file.empty())
-            throw "Unexpected argument '-m' in measure mode";
-
-        if (!args.stego_file.empty())
-            throw "Unexpected argument '-s' in measure mode";
-
-        if (!args.output_file.empty())
-            throw "Unexpected argument '-o' in measure mode";
-
-        args.threshold = parse_threshold(threshold_str);
+        args.cover_file = raw_args.get_value_or_throw("-c");
+        args.message_file = raw_args.get_value_or_throw("-m");
+        args.output_file = raw_args.get_value_or_throw("-o");
+        args.rmax = raw_args.get_integer_or_default_with_range("--rmax", 8, 0, 8);
+        args.gmax = raw_args.get_integer_or_default_with_range("--gmax", 8, 0, 8);
+        args.bmax = raw_args.get_integer_or_default_with_range("--bmax", 8, 0, 8);
+        args.amax = raw_args.get_integer_or_default_with_range("--amax", 8, 0, 8);
+    } else if (args.extract) {
+        args.stego_file = raw_args.get_value_or_throw("-s");
+        args.output_file = raw_args.get_value_or_throw("-o");
+    } else if (args.measure) {
+        args.cover_file = raw_args.get_value_or_throw("-c");
+        args.threshold = raw_args.get_float_or_default_with_range("-t", 0.3f, 0.0f, 0.5f);
     }
 
     return args;
 }
-

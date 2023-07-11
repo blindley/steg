@@ -2,7 +2,6 @@
 #define ARGS_202306151743
 
 #include <string>
-#include <ostream>
 
 #include "utility.h"
 
@@ -22,7 +21,6 @@ struct Args {
     u8 amax;
 };
 
-void debug_print(std::ostream& ostr, Args const& args);
 Args parse_args(int argc, char** argv);
 
 #endif // ARGS_202306151743

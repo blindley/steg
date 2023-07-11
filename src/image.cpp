@@ -8,13 +8,6 @@
 #include <iostream>
 #include <cassert>
 
-void debug_print(std::ostream& ostr, Image const& img) {
-    ostr << "Image { ";
-    ostr << "width=" << img.width << ' ';
-    ostr << "height=" << img.height << ' ';
-    ostr << "}\n";
-}
-
 void Image::save(std::string const& filename) {
     if (stbi_write_png(filename.c_str(), this->width, this->height, 4, this->pixel_data.data(), 0) == 0) {
         std::cout << "failure writing " << filename << '\n';
