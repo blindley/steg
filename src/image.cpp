@@ -1,19 +1,33 @@
-#include "image.h"
-#include "stb/stb_image.h"
-#include "stb/stb_image_write.h"
-#include "utility.h"
-
 #include <format>
 #include <cstdint>
 #include <iostream>
 #include <cassert>
 
+#include "image.h"
+#include "stb/stb_image.h"
+#include "stb/stb_image_write.h"
+#include "utility.h"
+
 void Image::save(std::string const& filename) {
-    if (stbi_write_png(filename.c_str(), this->width, this->height, 4, this->pixel_data.data(), 0) == 0) {
+    auto ext = get_file_extension(filename);
+
+    int success;
+    if (ext == "bmp") 
+        success = stbi_write_bmp(filename.c_str(), this->width, this->height, 4, this->pixel_data.data());
+    else if (ext == "png")
+        success = stbi_write_png(filename.c_str(), this->width, this->height, 4, this->pixel_data.data(), 0);
+    else if (ext == "tga")
+        success = stbi_write_tga(filename.c_str(), this->width, this->height, 4, this->pixel_data.data());
+    else {
+        auto err = std::format("unsupported file extension .{}", ext);
+        throw std::runtime_error(err);
+    }
+    
+    if (success) {
+        std::cout << "success writing " << filename << '\n';
+    } else {
         auto err = std::format("failure writing {}", filename);
         throw std::runtime_error(err);
-    } else {
-        std::cout << "success writing " << filename << '\n';
     }
 }
 

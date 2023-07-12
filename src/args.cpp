@@ -170,6 +170,12 @@ Args parse_args(int argc, char** argv) {
         args.gmax = raw_args.get_integer_or_default_with_range("--gmax", 8, 0, 8);
         args.bmax = raw_args.get_integer_or_default_with_range("--bmax", 8, 0, 8);
         args.amax = raw_args.get_integer_or_default_with_range("--amax", 8, 0, 8);
+
+        auto ext = get_file_extension(args.output_file);
+        if (ext != "bmp" && ext != "png" && ext != "tga") {
+            auto err = std::format("output file extension must be one of bmp, png or tga");
+            throw std::runtime_error(err);
+        }
     } else if (args.extract) {
         args.stego_file = raw_args.get_value_or_throw("-s");
         args.output_file = raw_args.get_value_or_throw("-o");

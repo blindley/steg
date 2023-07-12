@@ -15,4 +15,5 @@ add_executable(
     colorgram.cpp
     ../src/image.cpp
     ../src/stb/stb.cpp
+    ../src/utility.cpp
 )
