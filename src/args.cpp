@@ -6,6 +6,69 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <iostream>
+
+std::string get_exe_short_name(char const* argv0) {
+    char const* after_last_slash = argv0;
+    for (size_t i = 0; argv0[i] != 0; i++) {
+        if (argv0[i] == '/' || argv0[i] == '\\') {
+            after_last_slash = argv0 + i + 1;
+        }
+    }
+    return after_last_slash;
+}
+
+void print_usage(char const* exe_name) {
+    auto exe_short_name = get_exe_short_name(exe_name);
+
+    std::cout << "Usage:\n";
+    std::cout << "    " << exe_short_name
+        << " --hide -m <message file> -c <coverfile> -o <stego file> "
+        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
+    std::cout << "    " << exe_short_name
+        << " --hide --random <count> -c <coverfile> -o <stego file> "
+        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";    
+    std::cout << "    " << exe_short_name << " --extract -s <stego file> -o <message file>\n";
+    std::cout << "    " << exe_short_name << " --measure -c <cover file> -t <threshold>\n";
+    std::cout << "    " << exe_short_name << " --help\n";
+
+    std::cout << "\n(try --help for more details)\n";
+}
+
+void print_help(char const* argv0) {
+    print_usage(argv0);
+
+    char const* help_lines[] = {
+        "",
+        "Modes:",
+        "  --hide              Hide message in cover image",
+        "  --extract           Extract hidden message",
+        "  --measure           Measure hiding capacity of an image",
+        "  --help              Display this help message",
+        "",
+        "Hide Mode Options:",
+        "  -c <coverfile>      Cover image to hide message in",
+        "  -m <message file>   Message file to hide",
+        "  --random <count>    Fill cover file with <count> random bytes",
+        "  -o <stego file>     Name of output stego image file",
+        "  --rmax <n>          Max red bitplanes to use ([0,8], default=8)",
+        "  --gmax <n>          Max green bitplanes to use ([0,8], default=8)",
+        "  --bmax <n>          Max blue bitplanes to use ([0,8], default=8)",
+        "  --amax <n>          Max alpha bitplanes to use ([0,8], default=8)",
+        "",
+        "Extract Mode Options:",
+        "  -s <stego file>     Stego file to extract hidden message from",
+        "  -o <message file>   Name of output message file",
+        "",
+        "Measure Mode Options:",
+        "  -c <cover file>     Cover image to measure for capacity",
+        "  -t <threshold>      Complexity threshold to measure for [0,0.5]",
+    };
+
+    for (auto& line : help_lines) {
+        std::cout << line << '\n';
+    }
+}
 
 struct RawArgs {
     std::set<std::string> flags;

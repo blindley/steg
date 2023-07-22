@@ -23,5 +23,7 @@ struct Args {
 };
 
 Args parse_args(int argc, char** argv);
+void print_usage(char const* exe_name);
+void print_help(char const* exe_name);
 
 #endif // ARGS_202306151743

@@ -1,3 +1,7 @@
+#include <fstream>
+#include <stdexcept>
+#include <format>
+#include <random>
 
 #include "utility.h"
 
@@ -31,6 +35,64 @@ std::string get_file_extension(std::string const& filename) {
     }
 
     return "";
+}
+
+void save_file(std::string const& filename, u8 const* data, size_t len) {
+    std::ofstream ofstr(filename, std::ios::binary);
+    if (!ofstr) {
+        auto err = std::format("unable to open {} for writing", filename);
+        throw std::runtime_error(err);
+    }
+
+    ofstr.write((char const*)data, len);
+
+    if (!ofstr) {
+        auto err = std::format("error writing to {}", filename);
+        throw std::runtime_error(err);
+    }
+}
+
+void save_file(std::string const& filename, std::vector<u8> const& data) {
+    save_file(filename, data.data(), data.size());
+}
+
+std::vector<u8> load_file(std::string const& filename) {
+    std::ifstream ifstr(filename, std::ios::binary);
+
+    if (!ifstr) {
+        auto err = std::format("unable to open {}", filename);
+        throw std::runtime_error(err);
+    }
+
+    ifstr.seekg(0, std::ios::end);
+    auto size = ifstr.tellg();
+    ifstr.seekg(0, std::ios::beg);
+
+    if (!ifstr) {
+        auto err = std::format("error reading {}", filename);
+        throw std::runtime_error(err);
+    }
+
+    std::vector<u8> data;
+    data.resize(size);
+
+    ifstr.read((char*)data.data(), size);
+
+    if (!ifstr) {
+        auto err = std::format("error reading {}", filename);
+        throw std::runtime_error(err);
+    }
+
+    return data;
+}
+
+std::vector<u8> random_bytes(size_t size) {
+    std::mt19937_64 gen;
+    std::vector<u8> v(size);
+    for (auto& e : v) {
+        e = gen();
+    }
+    return v;
 }
 
 #ifdef STEG_TEST
