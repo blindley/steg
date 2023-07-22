@@ -51,10 +51,8 @@ void main_impl(int argc, char** argv) {
         auto cover_file = Image::load(args.cover_file);
 
         std::vector<u8> message;
-        if (args.message_file == "--random") {
-            auto cover_copy = cover_file;
-            auto measure = measure_capacity(0.3, cover_copy);
-            message = random_bytes(measure.total_message_capacity);
+        if (args.random_count >= 0) {
+            message = random_bytes(args.random_count);
         } else {
             message = load_file(args.message_file);
         }
@@ -124,8 +122,11 @@ void print_usage(char const* exe_name) {
 
     std::cout << "Usage:\n";
     std::cout << "    " << exe_short_name
-        << " --hide -m <message file | --random> -c <coverfile> -o <stego file> "
+        << " --hide -m <message file> -c <coverfile> -o <stego file> "
         << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
+    std::cout << "    " << exe_short_name
+        << " --hide --random <count> -c <coverfile> -o <stego file> "
+        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";    
     std::cout << "    " << exe_short_name << " --extract -s <stego file> -o <message file>\n";
     std::cout << "    " << exe_short_name << " --measure -c <cover file> -t <threshold>\n";
     std::cout << "    " << exe_short_name << " --help\n";
@@ -146,7 +147,7 @@ void print_help(char const* argv0) {
     std::cout << "\nHide Mode Options:\n";
     std::cout << "  -c <coverfile>      Cover image to hide message in\n";
     std::cout << "  -m <message file>   Message file to hide\n";
-    std::cout << "  -m --random         Fill cover file with random data\n";
+    std::cout << "  --random <count>    Fill cover file with <count> random bytes\n";
     std::cout << "  -o <stego file>     Name of output stego image file\n";
     std::cout << "  --rmax <n>          Max red bitplane to hide in ([0,8], default=8)\n";
     std::cout << "  --gmax <n>          Max green bitplane to hide in ([0,8], default=8)\n";

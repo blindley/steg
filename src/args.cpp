@@ -103,7 +103,7 @@ RawArgs collect_raw_args(int argc, char** _argv,
 Args parse_args(int argc, char** argv) {
     auto raw_args = collect_raw_args(argc, argv,
         {"--hide", "--extract", "--measure", "--help"},
-        {"-m", "-c", "-o", "-s", "-t", "--rmax", "--gmax", "--bmax", "--amax"}
+        {"-m", "-c", "-o", "-s", "-t", "--rmax", "--gmax", "--bmax", "--amax", "--random"}
     );
 
     Args args = {};
@@ -117,6 +117,7 @@ Args parse_args(int argc, char** argv) {
     args.hide = raw_args.arg_is_present("--hide");
     args.extract = raw_args.arg_is_present("--extract");
     args.measure = raw_args.arg_is_present("--measure");
+    bool random_message = raw_args.arg_is_present("--random");
 
     int num_modes = (int)args.hide + (int)args.extract + (int)args.measure;
     if (num_modes == 0) {
@@ -133,8 +134,13 @@ Args parse_args(int argc, char** argv) {
     std::set<std::string> allowed_args;
 
     if (args.hide) {
-        required_args = {"--hide", "-m", "-c", "-o"};
-        allowed_args = {"--rmax", "--gmax", "--bmax", "--amax"};
+        if (random_message) {
+            required_args = {"--hide", "--random", "-c", "-o"};
+            allowed_args = {"--rmax", "--gmax", "--bmax", "--amax"};
+        } else {
+            required_args = {"--hide", "-m", "-c", "-o"};
+            allowed_args = {"--rmax", "--gmax", "--bmax", "--amax"};
+        }
     } else if (args.extract) {
         required_args = {"--extract", "-s", "-o"};
     } else if (args.measure) {
@@ -163,8 +169,13 @@ Args parse_args(int argc, char** argv) {
     }
 
     if (args.hide) {
+        if (random_message) {
+            args.random_count = raw_args.get_integer_or_default_with_range("--random", -1, 0, 2000000000);
+        } else {
+            args.message_file = raw_args.get_value_or_throw("-m");
+            args.random_count = -1;
+        }
         args.cover_file = raw_args.get_value_or_throw("-c");
-        args.message_file = raw_args.get_value_or_throw("-m");
         args.output_file = raw_args.get_value_or_throw("-o");
         args.rmax = raw_args.get_integer_or_default_with_range("--rmax", 8, 0, 8);
         args.gmax = raw_args.get_integer_or_default_with_range("--gmax", 8, 0, 8);

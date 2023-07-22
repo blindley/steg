@@ -10,6 +10,7 @@ struct Args {
     bool extract;
     bool hide;
     bool measure;
+    int random_count;
     std::string message_file;
     std::string cover_file;
     std::string stego_file;
