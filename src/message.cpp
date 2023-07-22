@@ -28,7 +28,7 @@ size_t calculate_formatted_message_size(size_t message_size) {
 }
 
 size_t calculate_message_capacity_from_chunk_count(size_t chunk_count) {
-    size_t usable_chunks = chunk_count / 8 * 8;
+    size_t usable_chunks = (chunk_count - 2) / 8 * 8;
     size_t usable_bytes = usable_chunks / 8 * 63 - sizeof(SIGNATURE) - sizeof(u32);
     return usable_bytes;
 }

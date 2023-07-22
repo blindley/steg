@@ -359,6 +359,7 @@ Measurements measure_capacity(float threshold, Image& img) {
     auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
 
     Measurements meas = {};
+    binary_to_gray_code_inplace(img.pixel_data);
     auto cover = chunkify(img, bitplane_priority);
 
     size_t chunks_per_bitplane = cover.chunks.size() / 32;
