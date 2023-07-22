@@ -35,6 +35,25 @@ void DataChunk::conjugate() {
     }
 }
 
+/// @brief Used for calculating the complexity threshold
+///
+/// Based on the idea of a Cumulative Distribution Function, can be queried for
+/// a complexity value C, and returns how many chunks in the supplied
+/// DataChunkArray have complexity >= C
+struct CDF {
+    CDF(DataChunkArray const& chunks);
+
+    // returns the count of chunks which have complexity >= c
+    size_t query(float complexity) const;
+
+    // returns the maximum complexity threshold that can be used if you need
+    // to store the specified number of chunks
+    // a negative value indicates that many chunks can not fit at any threshold
+    float max_threshold_to_store(size_t chunk_count) const;
+
+    std::vector<std::pair<float, size_t>> inner;
+};
+
 CDF::CDF(DataChunkArray const& chunks) {
     std::map<float, size_t> hist;
     for (auto& e : chunks) {
@@ -67,6 +86,18 @@ float CDF::max_threshold_to_store(size_t chunk_count) const {
             return threshold;
     }
     return -1.0f;
+}
+
+float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover_chunks) {
+    CDF cdf(cover_chunks);
+    float threshold = cdf.max_threshold_to_store(message_chunk_count);
+    threshold = std::min(0.5f, threshold);
+
+    // CDF::max_threshold_to_store returns a negative number if the message can't fit,
+    // but we will just clamp it to 0 and store a partial message in that case
+    threshold = std::max(0.0f, threshold);
+
+    return threshold;
 }
 
 #ifdef STEG_TEST

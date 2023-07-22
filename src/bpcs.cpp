@@ -329,13 +329,9 @@ float bpcs_hide_message(Image& img, std::vector<u8> const& message,
 {
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
-
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
-
     auto planed_data = chunkify(img, bitplane_priority);
-    CDF cdf(planed_data);
-    float threshold = cdf.max_threshold_to_store(formatted_data.chunks.size());
-    threshold = std::min(0.5f, threshold);
+    float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2, planed_data);
     hide_formatted_message(threshold, planed_data, formatted_data, rmax, gmax, bmax, amax);
     de_chunkify(img, planed_data, bitplane_priority);
     gray_code_to_binary_inplace(img.pixel_data);

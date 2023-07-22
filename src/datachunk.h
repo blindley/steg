@@ -56,23 +56,6 @@ struct DataChunkArray {
     }
 };
 
-/// @brief Used for calculating the complexity threshold
-///
-/// Based on the idea of a Cumulative Distribution Function, can be queried for
-/// a complexity value C, and returns how many chunks in the supplied
-/// DataChunkArray have complexity >= C
-struct CDF {
-    CDF(DataChunkArray const& chunks);
-
-    // returns the count of chunks which have complexity >= c
-    size_t query(float complexity) const;
-
-    // returns the maximum complexity threshold that can be used if you need
-    // to store the specified number of chunks
-    // a negative value indicates that many chunks can not fit at any threshold
-    float max_threshold_to_store(size_t chunk_count) const;
-
-    std::vector<std::pair<float, size_t>> inner;
-};
+float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover_chunks);
 
 #endif // DATACHUNK_202307051716
