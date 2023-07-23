@@ -7,3 +7,4 @@ data/
 .vscode/
 *.sln
 build/
+install.ps1
