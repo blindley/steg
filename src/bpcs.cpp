@@ -266,19 +266,26 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data,
 // the chunks from the formatted message at those locations. Note that the
 // first two available chunks are used to store the signature chunks
 // (see generate_signature_chunks(...))
-void hide_formatted_message(float threshold, DataChunkArray& cover,
-    DataChunkArray const& formatted_message,
+void hide_formatted_message(HideStats& stats, float threshold,
+    DataChunkArray& cover, DataChunkArray const& formatted_message,
     u8 rmax, u8 gmax, u8 bmax, u8 amax)
 {
     auto signature_chunks = generate_signature_chunks(rmax, gmax, bmax, amax);
+    auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
+    size_t chunks_per_bitplane = cover.chunks.size() / bitplane_priority.size();
 
     size_t signature_chunk_index = 0;
     auto message_chunk_iter = formatted_message.begin();
-    for (auto& cover_chunk : cover) {
+    for (size_t chunk_index = 0; chunk_index < cover.chunks.size(); chunk_index++) {
+        auto& cover_chunk = cover.chunks[chunk_index];
         if (message_chunk_iter == formatted_message.end())
             break;
         auto complexity = cover_chunk.measure_complexity();
         if (complexity >= threshold) {
+            size_t bitplane_index = bitplane_priority[chunk_index / chunks_per_bitplane];
+            stats.chunks_used_per_bitplane[bitplane_index]++;
+            stats.chunks_used++;
+
             if (signature_chunk_index < 2) {
                 cover_chunk = signature_chunks[signature_chunk_index++];
             } else {
@@ -289,13 +296,13 @@ void hide_formatted_message(float threshold, DataChunkArray& cover,
     }
 
     // reached end of cover data before full message was hidden
-    if (message_chunk_iter != formatted_message.end()) {
-        auto chunks_hidden = message_chunk_iter - formatted_message.begin();
-        auto full_chunk_groups_hidden = chunks_hidden / 8;
-        auto capacity = full_chunk_groups_hidden * 63 - 7;
-        auto err = std::format("max hiding capacity ({} bytes) exceeded", capacity);
-        throw std::runtime_error(err);
-    }
+    // if (message_chunk_iter != formatted_message.end()) {
+    //     auto chunks_hidden = message_chunk_iter - formatted_message.begin();
+    //     auto full_chunk_groups_hidden = chunks_hidden / 8;
+    //     auto capacity = full_chunk_groups_hidden * 63 - 7;
+    //     auto err = std::format("max hiding capacity ({} bytes) exceeded", capacity);
+    //     throw std::runtime_error(err);
+    // }
 }
 
 // Extract a hidden formatted message from a DataChunkArray
@@ -324,18 +331,27 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover) {
 //
 // This is the high level function that ties everything together for the hiding
 // algorithm.
-float bpcs_hide_message(Image& img, std::vector<u8> const& message,
+HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
     u8 rmax, u8 gmax, u8 bmax, u8 amax)
 {
+    HideStats stats = {};
+    stats.message_size = message.size();
+
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
     auto planed_data = chunkify(img, bitplane_priority);
     float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2, planed_data);
-    hide_formatted_message(threshold, planed_data, formatted_data, rmax, gmax, bmax, amax);
+    stats.threshold = threshold;
+    hide_formatted_message(stats, threshold, planed_data, formatted_data,
+        rmax, gmax, bmax, amax);
+    stats.message_bytes_hidden = (stats.chunks_used - 2) / 8 * 63 - 7;
+    stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
+
     de_chunkify(img, planed_data, bitplane_priority);
     gray_code_to_binary_inplace(img.pixel_data);
-    return threshold;
+
+    return stats;
 }
 
 // Extracts a message hidden in an image

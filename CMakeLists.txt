@@ -47,5 +47,3 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(steg_test)
-
-add_subdirectory(tools)

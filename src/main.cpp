@@ -60,7 +60,7 @@ void main_impl(int argc, char** argv) {
             }
         }
 
-        float threshold = bpcs_hide_message(cover_file, message,
+        auto stats = bpcs_hide_message(cover_file, message,
             args.rmax, args.gmax, args.bmax, args.amax);
 
         if (args.output_file.empty()) {
@@ -68,7 +68,19 @@ void main_impl(int argc, char** argv) {
         }
 
         cover_file.save(args.output_file);
-        std::cout << "complexity threshold : " << threshold << '\n';
+
+        std::cout << "bytes hidden: "
+            << stats.message_bytes_hidden << '/' << stats.message_size << '\n';
+        std::cout << "chunks used per bitplane:\n";
+        std::cout << "       red     green      blue     alpha\n";
+        for (size_t i = 0; i < 8; i++) {
+            auto a = stats.chunks_used_per_bitplane[24 + i];
+            for (size_t channel_index = 0; channel_index < 4; channel_index++) {
+                auto component_value = stats.chunks_used_per_bitplane[channel_index * 8 + i];
+                std::cout << std::setw(10) << component_value;
+            }
+            std::cout << '\n';
+        }
     } else if (args.extract) {
         auto steg_file = Image::load(args.stego_file);
 
