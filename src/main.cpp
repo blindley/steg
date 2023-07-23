@@ -47,7 +47,17 @@ void main_impl(int argc, char** argv) {
         if (args.random_count >= 0) {
             message = random_bytes(args.random_count);
         } else {
-            message = load_file(args.message_file);
+            if (args.message_file == "-") {
+                std::string line;
+                while (std::getline(std::cin, line)) {
+                    u8 const* b = (u8*)line.data();
+                    u8 const* e = b + line.size();
+                    message.insert(message.end(), b, e);
+                    message.push_back((u8)'\n');
+                }
+            } else {
+                message = load_file(args.message_file);
+            }
         }
 
         float threshold = bpcs_hide_message(cover_file, message,
@@ -68,14 +78,19 @@ void main_impl(int argc, char** argv) {
 
         auto extracted_message = bpcs_unhide_message(steg_file);
 
-        if (args.output_file.empty()) {
-            args.output_file = "data/message.dat";
+        if (args.output_file == "-") {
+            auto data = (char const*)extracted_message.data();
+            std::cout.write(data, extracted_message.size());
+        } else {
+            if (args.output_file.empty()) {
+                args.output_file = "data/message.dat";
+            }
+
+            save_file(args.output_file, extracted_message.data(), extracted_message.size());
+
+            std::cout << "extracted " << extracted_message.size() << " bytes to "
+                << args.output_file << '\n';
         }
-
-        save_file(args.output_file, extracted_message.data(), extracted_message.size());
-
-        std::cout << "extracted " << extracted_message.size() << " bytes to "
-            << args.output_file << '\n';
     } else if (args.measure) {
         auto cover_file = Image::load(args.cover_file);
         auto measurements = measure_capacity(args.threshold, cover_file);
