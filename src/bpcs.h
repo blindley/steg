@@ -23,6 +23,6 @@ struct HideStats {
 HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
     u8 rmax, u8 gmax, u8 bmax, u8 amax);
 std::vector<u8> bpcs_unhide_message(Image& img);
-Measurements measure_capacity(float threshold, Image& img);
+HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax);
 
 #endif // BCPS_202306171341

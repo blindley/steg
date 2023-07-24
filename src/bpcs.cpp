@@ -371,31 +371,27 @@ std::vector<u8> bpcs_unhide_message(Image& img) {
 
 // Given an image and a complexity threshold, determines the image's hiding
 // capacity at that threshold.
-Measurements measure_capacity(float threshold, Image& img) {
-    auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
+HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax) {
+    std::vector<u8> message(img.pixel_data.size());
+    
+    HideStats stats = {};
+    stats.message_size = message.size();
 
-    Measurements meas = {};
+    auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
-    auto cover = chunkify(img, bitplane_priority);
+    auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
+    auto planed_data = chunkify(img, bitplane_priority);
+    // float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2, planed_data);
+    stats.threshold = threshold;
+    hide_formatted_message(stats, threshold, planed_data, formatted_data,
+        rmax, gmax, bmax, amax);
+    stats.message_bytes_hidden = (stats.chunks_used - 2) / 8 * 63 - 7;
+    stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
 
-    size_t chunks_per_bitplane = cover.chunks.size() / 32;
-    size_t chunk_index = 0;
-    size_t complex_chunk_count = 0;
-    for (size_t _bitplane_index = 0; _bitplane_index < 32; _bitplane_index++) {
-        size_t bitplane_index = bitplane_priority[_bitplane_index];
-        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
-            auto complexity = cover.chunks[chunk_index].measure_complexity();
-            if (complexity >= threshold) {
-                meas.available_chunks_per_bitplane[bitplane_index]++;
-                complex_chunk_count++;
-            }
-            chunk_index++;
-        }
-    }
+    de_chunkify(img, planed_data, bitplane_priority);
+    gray_code_to_binary_inplace(img.pixel_data);
 
-    meas.total_message_capacity = calculate_message_capacity_from_chunk_count(complex_chunk_count);
-
-    return meas;
+    return stats;
 }
 
 #ifdef STEG_TEST

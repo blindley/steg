@@ -208,6 +208,7 @@ Args parse_args(int argc, char** argv) {
         required_args = {"--extract", "-s", "-o"};
     } else if (args.measure) {
         required_args = {"--measure", "-c", "-t"};
+        allowed_args = {"--rmax", "--gmax", "--bmax", "--amax"};
     }
 
     allowed_args.insert(required_args.begin(), required_args.end());
@@ -256,6 +257,10 @@ Args parse_args(int argc, char** argv) {
     } else if (args.measure) {
         args.cover_file = raw_args.get_value_or_throw("-c");
         args.threshold = raw_args.get_float_or_default_with_range("-t", 0.3f, 0.0f, 0.5f);
+        args.rmax = raw_args.get_integer_or_default_with_range("--rmax", 8, 0, 8);
+        args.gmax = raw_args.get_integer_or_default_with_range("--gmax", 8, 0, 8);
+        args.bmax = raw_args.get_integer_or_default_with_range("--bmax", 8, 0, 8);
+        args.amax = raw_args.get_integer_or_default_with_range("--amax", 8, 0, 8);
     }
 
     return args;

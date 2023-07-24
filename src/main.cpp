@@ -105,18 +105,15 @@ void main_impl(int argc, char** argv) {
         }
     } else if (args.measure) {
         auto cover_file = Image::load(args.cover_file);
-        auto measurements = measure_capacity(args.threshold, cover_file);
+        auto stats = measure_capacity(args.threshold, cover_file,
+            args.rmax, args.gmax, args.bmax, args.amax);
 
-        std::cout << "total_capacity: " << measurements.total_message_capacity << '\n';
+        std::cout << "total_capacity: " << stats.message_bytes_hidden << '\n';
         std::cout << "complex chunks per bitplane:\n";
         std::cout << "       red     green      blue     alpha\n";
         for (size_t i = 0; i < 8; i++) {
-            auto r = measurements.available_chunks_per_bitplane[i];
-            auto g = measurements.available_chunks_per_bitplane[8 + i];
-            auto b = measurements.available_chunks_per_bitplane[16 + i];
-            auto a = measurements.available_chunks_per_bitplane[24 + i];
             for (size_t channel_index = 0; channel_index < 4; channel_index++) {
-                auto component_value = measurements.available_chunks_per_bitplane[channel_index * 8 + i];
+                auto component_value = stats.chunks_used_per_bitplane[channel_index * 8 + i];
                 std::cout << std::setw(10) << component_value;
             }
             std::cout << '\n';
