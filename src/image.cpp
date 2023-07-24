@@ -26,7 +26,8 @@ void Image::save(std::string const& filename) {
     if (success) {
         std::cout << "success writing " << filename << '\n';
     } else {
-        auto err = std::format("failure writing {}", filename);
+        auto reason = stbi_failure_reason();
+        auto err = std::format("failure writing \"{}\"; reason: {}", filename, reason);
         throw std::runtime_error(err);
     }
 }
@@ -37,7 +38,8 @@ Image Image::load(std::string const& filename) {
     int x, y;
     auto data = stbi_load(filename.c_str(), &x, &y, nullptr, 4);
     if (data == nullptr) {
-        auto err = std::format("unable to load \"{}\"", filename);
+        auto reason = stbi_failure_reason();
+        auto err = std::format("unable to load \"{}\"; reason: {}", filename, reason);
         throw std::runtime_error(err);
     } else {
         img.width = x;
