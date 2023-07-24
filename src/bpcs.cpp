@@ -272,7 +272,11 @@ void hide_formatted_message(HideStats& stats, float threshold,
 {
     auto signature_chunks = generate_signature_chunks(rmax, gmax, bmax, amax);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
-    size_t chunks_per_bitplane = cover.chunks.size() / bitplane_priority.size();
+
+    size_t chunks_per_bitplane = 0;
+    if (bitplane_priority.size() != 0) {
+        chunks_per_bitplane = cover.chunks.size() / bitplane_priority.size();
+    }
 
     size_t signature_chunk_index = 0;
     auto message_chunk_iter = formatted_message.begin();
@@ -345,7 +349,11 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
     stats.threshold = threshold;
     hide_formatted_message(stats, threshold, planed_data, formatted_data,
         rmax, gmax, bmax, amax);
-    stats.message_bytes_hidden = (stats.chunks_used - 2) / 8 * 63 - 7;
+    if (stats.chunks_used < 9) {
+        stats.message_bytes_hidden = 0;
+    } else {
+        stats.message_bytes_hidden = (stats.chunks_used - 2) / 8 * 63 - 7;
+    }
     stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
 
     de_chunkify(img, planed_data, bitplane_priority);
@@ -381,15 +389,15 @@ HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bma
     binary_to_gray_code_inplace(img.pixel_data);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
     auto planed_data = chunkify(img, bitplane_priority);
-    // float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2, planed_data);
     stats.threshold = threshold;
     hide_formatted_message(stats, threshold, planed_data, formatted_data,
         rmax, gmax, bmax, amax);
-    stats.message_bytes_hidden = (stats.chunks_used - 2) / 8 * 63 - 7;
+    if (stats.chunks_used < 9) {
+        stats.message_bytes_hidden = 0;
+    } else {
+        stats.message_bytes_hidden = (stats.chunks_used - 2) / 8 * 63 - 7;
+    }
     stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
-
-    de_chunkify(img, planed_data, bitplane_priority);
-    gray_code_to_binary_inplace(img.pixel_data);
 
     return stats;
 }
