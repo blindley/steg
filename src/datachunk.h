@@ -56,6 +56,7 @@ struct DataChunkArray {
     }
 };
 
-float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover_chunks);
+float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover_chunks,
+    std::vector<size_t> const& bitplane_priority);
 
 #endif // DATACHUNK_202307051716

@@ -16,7 +16,7 @@
 #include "image.h"
 #include "datachunk.h"
 
-DataChunkArray chunkify(Image const& img, std::vector<size_t> const& bitplane_priority);
+DataChunkArray chunkify(Image const& img);
 void de_chunkify(Image& img, DataChunkArray const& planed_data,
     std::vector<size_t> const& bitplane_priority);
 
@@ -108,42 +108,10 @@ std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 ama
     return bitplane_priority;
 }
 
-// Determine the bitplane priority of an image with a hidden message
-//
-// Finds the signature chunks, and uses them to determine rmax, gmax, bmax and
-// amax. (see generate_signature_chunks(...))
-//
-// From those values, determine bitplane priority
-// (see generate_bitplane_priority(...))
-std::vector<size_t> find_bitplane_priority(Image const& img) {
-    // TODO: Chunifying the image twice, could probably improve this
-    auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
-    auto chunks = chunkify(img, bitplane_priority);
-    size_t signature_chunks_found = 0;
-    auto blank_signature_chunks = generate_signature_chunks(0, 0, 0, 0);
-    for (auto& e : chunks) {
-        if (std::memcmp(blank_signature_chunks[signature_chunks_found].bytes, e.bytes, 7) == 0) {
-            blank_signature_chunks[signature_chunks_found].bytes[7] = e.bytes[7];
-            signature_chunks_found++;
-            if (signature_chunks_found == 2) {
-                u8 max0 = blank_signature_chunks[0].bytes[7];
-                u8 max1 = blank_signature_chunks[1].bytes[7];
-                u8 rmax = (max0 >> 4) & 0x0F;
-                u8 gmax = max0 & 0x0F;
-                u8 bmax = (max1 >> 4) & 0x0F;
-                u8 amax = max1 & 0x0F;
-                return generate_bitplane_priority(rmax, gmax, bmax, amax);
-            }
-        }
-    }
-
-    throw std::runtime_error("signature chunks not found");
-}
-
 // Returns an array of DataChunks from the bitplanes of the image
 //
 // A DataChunk is an 8x8 bit chunk of a single bitplane of the image. The chunks
-// are pulled out from one bitplane at a time, based on the bitplane priority.
+// are pulled out from one bitplane at a time.
 // The order in which the chunks are pulled out in each bitplane is randomized
 // using a reproducible random number generator with a fixed seed. For images
 // in which the width or height is not divisible by 8, the excess pixels on the
@@ -154,20 +122,13 @@ std::vector<size_t> find_bitplane_priority(Image const& img) {
 // process is greatly simplified by the get_bit(...) and set_bit(...) functions,
 // which essentially treat an array of bytes as an array of bits. This makes
 // the process of copying bits about as simple as it is to copy bytes.
-// 
-// After calling this function, the hiding and extraction algorithms no longer
-// need to to think in terms a 2 dimensional image, or bitplanes. They just have
-// a one dimensional array of 8 byte chunks which they can work with in the
-// order which they appear.
-DataChunkArray chunkify(Image const& img, std::vector<size_t> const& bitplane_priority) {
+DataChunkArray chunkify(Image const& img) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
 
-    size_t num_bitplanes = bitplane_priority.size();
-
     DataChunkArray planed_data;
-    planed_data.chunks.resize(chunks_in_width * chunks_in_height * num_bitplanes);
+    planed_data.chunks.resize(chunks_in_width * chunks_in_height * 32);
     u8* planed_data_ptr = (u8*)planed_data.chunks.data();
     size_t pd_bit_index = 0;
 
@@ -180,8 +141,8 @@ DataChunkArray chunkify(Image const& img, std::vector<size_t> const& bitplane_pr
         chunk_priority[i] = i;
     std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
-    for (size_t bp = 0; bp < num_bitplanes; bp++) {
-        size_t bitplane_index = bitplane_priority[bp];
+    for (size_t bp = 0; bp < 32; bp++) {
+        size_t bitplane_index = bp;
 
         for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
             size_t chunk_index = chunk_priority[_chunk_index];
@@ -214,14 +175,11 @@ DataChunkArray chunkify(Image const& img, std::vector<size_t> const& bitplane_pr
 //
 // The structure of the loops is identical to that of chunkify(...), with the
 // only difference being which array we call get_bit(...) and set_bit(...) on.
-void de_chunkify(Image& img, DataChunkArray const& planed_data,
-    std::vector<size_t> const& bitplane_priority)
+void de_chunkify(Image& img, DataChunkArray const& planed_data)
 {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
-
-    size_t num_bitplanes = bitplane_priority.size();
 
     u8 const* planed_data_ptr = (u8 const*)planed_data.chunks.data();
     size_t pd_bit_index = 0;
@@ -235,8 +193,8 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data,
         chunk_priority[i] = i;
     std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
-    for (size_t bp = 0; bp < num_bitplanes; bp++) {
-        size_t bitplane_index = bitplane_priority[bp];
+    for (size_t bp = 0; bp < 32; bp++) {
+        size_t bitplane_index = bp;
 
         for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
             size_t chunk_index = chunk_priority[_chunk_index];
@@ -260,12 +218,12 @@ void de_chunkify(Image& img, DataChunkArray const& planed_data,
 
 // Hides an already formatted message in a DataChunkArray returned by chunkify(...)
 //
-// chunkify(...) already did most of the hard work, giving us the data chunks
-// from the bitplanes all in the correct order. Now we just have to iterate
-// over them, checking their complexity against the threshold, and inserting
-// the chunks from the formatted message at those locations. Note that the
-// first two available chunks are used to store the signature chunks
-// (see generate_signature_chunks(...))
+// Iterate over the chunks in order of bitplane priority
+// (see generate_bitplane_priority(...)), checking their complexity against the
+// threshold, and inserting the chunks from the formatted message at those
+// locations.
+// Note that the first two available chunks are used to store the signature
+// chunks (see generate_signature_chunks(...))
 void hide_formatted_message(HideStats& stats, float threshold,
     DataChunkArray& cover, DataChunkArray const& formatted_message,
     u8 rmax, u8 gmax, u8 bmax, u8 amax)
@@ -273,57 +231,97 @@ void hide_formatted_message(HideStats& stats, float threshold,
     auto signature_chunks = generate_signature_chunks(rmax, gmax, bmax, amax);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
 
-    size_t chunks_per_bitplane = 0;
-    if (bitplane_priority.size() != 0) {
-        chunks_per_bitplane = cover.chunks.size() / bitplane_priority.size();
-    }
+    size_t chunks_per_bitplane = cover.chunks.size() / 32;
 
     size_t signature_chunk_index = 0;
     auto message_chunk_iter = formatted_message.begin();
-    for (size_t chunk_index = 0; chunk_index < cover.chunks.size(); chunk_index++) {
-        auto& cover_chunk = cover.chunks[chunk_index];
+
+    for (size_t bp = 0; bp < bitplane_priority.size(); bp++) {
         if (message_chunk_iter == formatted_message.end())
             break;
-        auto complexity = cover_chunk.measure_complexity();
-        if (complexity >= threshold) {
-            size_t bitplane_index = bitplane_priority[chunk_index / chunks_per_bitplane];
-            stats.chunks_used_per_bitplane[bitplane_index]++;
-            stats.chunks_used++;
 
-            if (signature_chunk_index < 2) {
-                cover_chunk = signature_chunks[signature_chunk_index++];
-            } else {
-                cover_chunk = *message_chunk_iter;
-                ++message_chunk_iter;
+        size_t bitplane_index = bitplane_priority[bp];
+
+        for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
+            if (message_chunk_iter == formatted_message.end())
+                break;
+
+            size_t chunk_index = bitplane_index * chunks_per_bitplane + ci;
+            auto& cover_chunk = cover.chunks[chunk_index];
+
+            float complexity = cover_chunk.measure_complexity();
+            if (complexity >= threshold) {
+                stats.chunks_used_per_bitplane[bitplane_index]++;
+                stats.chunks_used++;
+
+                if (signature_chunk_index < 2) {
+                    cover_chunk = signature_chunks[signature_chunk_index++];
+                } else {
+                    cover_chunk = *message_chunk_iter;
+                    ++message_chunk_iter;
+                }
             }
         }
     }
-
-    // reached end of cover data before full message was hidden
-    // if (message_chunk_iter != formatted_message.end()) {
-    //     auto chunks_hidden = message_chunk_iter - formatted_message.begin();
-    //     auto full_chunk_groups_hidden = chunks_hidden / 8;
-    //     auto capacity = full_chunk_groups_hidden * 63 - 7;
-    //     auto err = std::format("max hiding capacity ({} bytes) exceeded", capacity);
-    //     throw std::runtime_error(err);
-    // }
 }
 
 // Extract a hidden formatted message from a DataChunkArray
 //
 // Just reverses the process of hide_formatted_message(...)
-DataChunkArray unhide_formatted_message(DataChunkArray const& cover) {
-    DataChunkArray formatted_message;
+DataChunkArray unhide_formatted_message(DataChunkArray const& cover)
+{
+    size_t chunks_per_bitplane = cover.chunks.size() / 32;
+
+    // Look for signature chunks to determine which bitplanes were used
+    DataChunk sig_chunks[2];
     size_t signature_chunk_index = 0;
-    for (auto& cover_chunk : cover) {
-        auto complexity = cover_chunk.measure_complexity();
-        if (complexity >= 0.5) {
-            if (signature_chunk_index < 2) {
-                // No need to check signature chunks, they would have already
-                // been checked by find_bitplane_priority(...)
-                signature_chunk_index++;
-            } else {
-                formatted_message.chunks.push_back(cover_chunk);
+    auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
+    for (size_t bp = 0; bp < bitplane_priority.size(); bp++) {
+        if (signature_chunk_index == 2)
+            break;
+
+        size_t bitplane_index = bitplane_priority[bp];
+        for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
+            if (signature_chunk_index == 2)
+                break;
+
+            size_t chunk_index = bitplane_index * chunks_per_bitplane + ci;
+            auto& cover_chunk = cover.chunks[chunk_index];
+            u8 const* sig_bytes = SIG14 + signature_chunk_index * 7;
+            if (std::memcmp(cover_chunk.bytes, sig_bytes, 7) == 0) {
+                sig_chunks[signature_chunk_index++] = cover_chunk;
+            }
+        }
+    }
+
+    if (signature_chunk_index != 2) {
+        auto err = "signature not found";
+        throw std::runtime_error(err);
+    }
+
+    u8 rmax = (sig_chunks[0].bytes[7] >> 4) & 0xF;
+    u8 gmax = sig_chunks[0].bytes[7] & 0xF;
+    u8 bmax = (sig_chunks[1].bytes[7] >> 4) & 0xF;
+    u8 amax = sig_chunks[1].bytes[7] & 0xF;
+
+    bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
+
+    DataChunkArray formatted_message;
+    signature_chunk_index = 0;
+
+    for (size_t bp = 0; bp < bitplane_priority.size(); bp++) {
+        size_t bitplane_index = bitplane_priority[bp];
+
+        for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
+            size_t chunk_index = bitplane_index * chunks_per_bitplane + ci;
+            auto& cover_chunk = cover.chunks[chunk_index];
+            auto complexity = cover_chunk.measure_complexity();
+            if (complexity >= 0.5) {
+                if (signature_chunk_index < 2) {
+                    signature_chunk_index++;
+                } else {
+                    formatted_message.chunks.push_back(cover_chunk);
+                }
             }
         }
     }
@@ -343,9 +341,10 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
 
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
+    auto planed_data = chunkify(img);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
-    auto planed_data = chunkify(img, bitplane_priority);
-    float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2, planed_data);
+    float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2,
+        planed_data, bitplane_priority);
     stats.threshold = threshold;
     hide_formatted_message(stats, threshold, planed_data, formatted_data,
         rmax, gmax, bmax, amax);
@@ -356,7 +355,7 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
     }
     stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
 
-    de_chunkify(img, planed_data, bitplane_priority);
+    de_chunkify(img, planed_data);
     gray_code_to_binary_inplace(img.pixel_data);
 
     return stats;
@@ -368,10 +367,7 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
 // algorithm.
 std::vector<u8> bpcs_unhide_message(Image& img) {
     binary_to_gray_code_inplace(img.pixel_data);
-
-    auto bitplane_priority = find_bitplane_priority(img);
-
-    auto planed_data = chunkify(img, bitplane_priority);
+    auto planed_data = chunkify(img);
     auto formatted_data = unhide_formatted_message(planed_data);
     auto message = unformat_message(formatted_data);
     return message;
@@ -381,14 +377,14 @@ std::vector<u8> bpcs_unhide_message(Image& img) {
 // capacity at that threshold.
 HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax) {
     std::vector<u8> message(img.pixel_data.size());
-    
+
     HideStats stats = {};
     stats.message_size = message.size();
 
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
-    auto planed_data = chunkify(img, bitplane_priority);
+    auto planed_data = chunkify(img);
     stats.threshold = threshold;
     hide_formatted_message(stats, threshold, planed_data, formatted_data,
         rmax, gmax, bmax, amax);
@@ -398,7 +394,7 @@ HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bma
         stats.message_bytes_hidden = (stats.chunks_used - 2) / 8 * 63 - 7;
     }
     stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
-
+    
     return stats;
 }
 

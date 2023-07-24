@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "datachunk.h"
+#include "bpcs.h"
 
 static size_t count_bit_transitions(u8 byte) {
     u8 x = (byte ^ (byte << 1)) & 0b11111110;
@@ -41,7 +42,7 @@ void DataChunk::conjugate() {
 /// a complexity value C, and returns how many chunks in the supplied
 /// DataChunkArray have complexity >= C
 struct CDF {
-    CDF(DataChunkArray const& chunks);
+    CDF(DataChunkArray const& chunks, std::vector<size_t> const& bitplane_priority);
 
     // returns the count of chunks which have complexity >= c
     size_t query(float complexity) const;
@@ -54,11 +55,21 @@ struct CDF {
     std::vector<std::pair<float, size_t>> inner;
 };
 
-CDF::CDF(DataChunkArray const& chunks) {
+CDF::CDF(DataChunkArray const& chunks, std::vector<size_t> const& bitplane_priority) {
+    size_t chunks_per_bitplane = chunks.chunks.size() / 32;
+
     std::map<float, size_t> hist;
-    for (auto& e : chunks) {
-        auto complexity = e.measure_complexity();
-        hist[complexity]++;
+
+    for (size_t bp = 0; bp < bitplane_priority.size(); bp++) {
+        size_t bitplane_index = bitplane_priority[bp];
+
+        for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
+            size_t chunk_index = bitplane_index * chunks_per_bitplane + ci;
+
+            auto& chunk = chunks.chunks[chunk_index];
+            auto complexity = chunk.measure_complexity();
+            hist[complexity]++;
+        }
     }
 
     size_t cumulative = 0;
@@ -88,8 +99,10 @@ float CDF::max_threshold_to_store(size_t chunk_count) const {
     return -1.0f;
 }
 
-float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover_chunks) {
-    CDF cdf(cover_chunks);
+float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover_chunks,
+    std::vector<size_t> const& bitplane_priority)
+{
+    CDF cdf(cover_chunks, bitplane_priority);
     float threshold = cdf.max_threshold_to_store(message_chunk_count);
     threshold = std::min(0.5f, threshold);
 
@@ -172,7 +185,7 @@ TEST(datachunk, measure_complexity) {
 
 TEST(datachunk, CDF) {
     DataChunkArray chunks;
-    chunks.chunks.resize(17);
+    chunks.chunks.resize(17*32);
     size_t i = 0;
     chunks.chunks[0] = {};
     chunks.chunks[1] = { 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, };
@@ -196,7 +209,8 @@ TEST(datachunk, CDF) {
         ASSERT_EQ(actual_complexity, expected_complexity);
     }
 
-    CDF cdf(chunks);
+    std::vector<size_t> bitplane_priority(1, 0);
+    CDF cdf(chunks, bitplane_priority);
 
     for (size_t i = 1; i <= 17; i++) {
         float expected_threshold = 1.0f - 0.0625f * (i - 1);
