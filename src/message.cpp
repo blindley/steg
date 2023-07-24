@@ -9,11 +9,13 @@
 u8 const SIGNATURE[] = { 0x2F, 0x64, 0xA9 };
 u8 const SIG14[] = { 53, 219, 170, 213, 10, 183, 76, 85, 179, 82, 181, 170, 55, 85 };
 
+// Reads 4 bytes, interpreting them as a big-endian u32
 u32 u32_from_bytes_be(u8 const* bytes) {
     u32 result = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
     return result;
 }
 
+// Writes a u32 in big-endian format
 void u32_to_bytes_be(u32 value, u8* bytes_out) {
     bytes_out[0] = (value >> 24);
     bytes_out[1] = (value >> 16);
@@ -21,18 +23,25 @@ void u32_to_bytes_be(u32 value, u8* bytes_out) {
     bytes_out[3] = value;
 }
 
+// Given actual message size, calculates size after formatting for hiding
 size_t calculate_formatted_message_size(size_t message_size) {
     size_t formatted_size = message_size + sizeof(SIGNATURE) + sizeof(u32);
     formatted_size = (formatted_size + 62) / 63 * 64;
     return formatted_size;
 }
 
+// Given a chunk count indicating number of complex chunks, calculates how
+// large of a message can be stored after formatting
 size_t calculate_message_capacity_from_chunk_count(size_t chunk_count) {
     size_t usable_chunks = (chunk_count - 2) / 8 * 8;
     size_t usable_bytes = usable_chunks / 8 * 63 - sizeof(SIGNATURE) - sizeof(u32);
     return usable_bytes;
 }
 
+// Conjugates a group of 8 chunks
+//
+// We do this in groups of 8 because the conjugation map is stored in the first byte of the first
+// chunk for every group of 8
 void conjugate_group(DataChunk* chunk_ptr) {
     u8 conj_map = 0;
     for (size_t i = 1; i < 8; i++) {
@@ -51,6 +60,7 @@ void conjugate_group(DataChunk* chunk_ptr) {
     }
 }
 
+// Deconjugate a group of 8 chunks
 void de_conjugate_group(DataChunk* chunk_ptr) {
     if ((chunk_ptr[0].bytes[0] & 0x80) == 0x80) {
         chunk_ptr[0].conjugate();
@@ -65,7 +75,24 @@ void de_conjugate_group(DataChunk* chunk_ptr) {
     }
 }
 
-DataChunkArray format_message_v2(std::vector<u8> const& message) {
+// Format a message for hiding
+//
+// Several things need to be done to a message in order that we can find it again. First, we need to
+// know the size of the message. So a 32 bit prefix indicating the size is placed in front.
+//
+// Second, we want to be confident that we aren't just pulling some random bytes out of an image,
+// and there actually is a message hidden here. So we insert three marker bytes which are just some
+// random numbers generated one time. Note that this is now redundant, because we have a much more
+// unique 14 byte signature that precedes the message and is used for determining which bitplanes
+// were actually used for hiding the message.
+//
+// Third, we need to make sure all of the message chunks are complex, otherwise the extractor won't
+// know which chunks to pull out. So we conjugate all chunks with complexity < 0.5. However, we also
+// need a way to know which chunks were conjugated. So an 8 bit conjugation map is placed as the
+// first byte of every 8th chunk. For simplicity, the formatted message is extended to a multiple of
+// 8 chunks. It's possible that this could cause a message that would otherwise be able to fit, to
+// not fit, if its size is very close to the capacity of the cover image (within 63 bytes).
+DataChunkArray format_message(std::vector<u8> const& message) {
     size_t formatted_size = message.size() + sizeof(SIGNATURE) + sizeof(u32);
     formatted_size = (formatted_size + 62) / 63 * 64;
     DataChunkArray formatted_data;
@@ -103,7 +130,11 @@ DataChunkArray format_message_v2(std::vector<u8> const& message) {
     return formatted_data;
 }
 
-std::vector<u8> unformat_message_v2(DataChunkArray formatted_data) {
+// Undoes what format_message(...) did.
+//
+// Unconjugates conjugated chunks, extracts size, checks signature, and returns message in its
+// original form.
+std::vector<u8> unformat_message(DataChunkArray formatted_data) {
     u8* byte_ptr = formatted_data.bytes_begin();
     DataChunk* chunk_ptr = formatted_data.begin();
     de_conjugate_group(chunk_ptr);
@@ -142,14 +173,6 @@ std::vector<u8> unformat_message_v2(DataChunkArray formatted_data) {
     }
 
     return message;
-}
-
-DataChunkArray format_message(std::vector<u8> const& message) {
-    return format_message_v2(message);
-}
-
-std::vector<u8> unformat_message(DataChunkArray formatted_data) {
-    return unformat_message_v2(formatted_data);
 }
 
 #ifdef STEG_TEST
