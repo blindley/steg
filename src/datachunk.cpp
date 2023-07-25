@@ -5,16 +5,21 @@
 #include "datachunk.h"
 #include "bpcs.h"
 
+// Counts all the bit transitions, from 1 to 0, or from 0 to 1, in a byte
 static size_t count_bit_transitions(u8 byte) {
     u8 x = (byte ^ (byte << 1)) & 0b11111110;
     return std::popcount(x);
 }
 
+// Counts the bit differences at each corresponding position of 2 bytes
 static size_t count_bit_differences(u8 a, u8 b) {
     u8 diff = a ^ b;
     return std::popcount(diff);
 }
 
+// Measure the complexity of a chunk
+//
+// Complexity is measured by counting the vertical and horizontal bit transitions in a chunk.
 float DataChunk::measure_complexity() const {
     size_t count = 0;
     for (size_t i = 0; i < 8; i++) {
@@ -29,6 +34,20 @@ float DataChunk::measure_complexity() const {
     return (float)count / (float)max_bit_transitions;
 }
 
+// Makes a non complex chunk complex, or vice versa
+//
+// - 0xAA = 10101010
+// - 0x55 = 01010101
+//
+// Repeat that 4 times and you have an 8x8 checkerboard pattern, where every bit is the opposite of
+// its neighbors in all 4 directions. This gives a total of 112 bit transitions, which is the
+// maximum possible in an 8x8 chunk. With the method by which we measure complexity, this also has
+// the maximum possible complexity C = 1. Xoring a chunk with the checkerboard pattern causes all of
+// the bit transitions to flip. That is, everywhere that there was a bit transition, now there
+// isn't. And everywhere that there wasn't a bit transition, now there is. This causes the
+// complexity to go from C to 1 - C.
+//
+// Conjucating a previously conjugated chunk gives back the original chunk.
 void DataChunk::conjugate() {
     for (size_t i = 0; i < 4; i++) {
         bytes[i * 2] ^= 0xAA;
@@ -36,25 +55,24 @@ void DataChunk::conjugate() {
     }
 }
 
-/// @brief Used for calculating the complexity threshold
-///
-/// Based on the idea of a Cumulative Distribution Function, can be queried for
-/// a complexity value C, and returns how many chunks in the supplied
-/// DataChunkArray have complexity >= C
+// Used for calculating the complexity threshold
+//
+// Based on the idea of a Cumulative Distribution Function, can be queried for a complexity
+// threshold T, and returns how many chunks in the supplied DataChunkArray have complexity >= T
 struct CDF {
     CDF(DataChunkArray const& chunks, std::vector<size_t> const& bitplane_priority);
-
-    // returns the count of chunks which have complexity >= c
-    size_t query(float complexity) const;
-
-    // returns the maximum complexity threshold that can be used if you need
-    // to store the specified number of chunks
-    // a negative value indicates that many chunks can not fit at any threshold
+    size_t query(float threshold) const;
     float max_threshold_to_store(size_t chunk_count) const;
 
     std::vector<std::pair<float, size_t>> inner;
 };
 
+// Generate the cumulative distribution of complex chunks
+//
+// First generate a histogram of all of the different complexity levels. Then use this to generate a
+// cumulative distribution function (cdf). A cdf is like a histogram, but where histogram[x] = the
+// number of elements which are equal to x, cdf[x] = the number of elements which are greater than
+// or equal to x.
 CDF::CDF(DataChunkArray const& chunks, std::vector<size_t> const& bitplane_priority) {
     size_t chunks_per_bitplane = chunks.chunks.size() / 32;
 
@@ -81,14 +99,20 @@ CDF::CDF(DataChunkArray const& chunks, std::vector<size_t> const& bitplane_prior
     std::reverse(inner.begin(), inner.end());
 }
 
-size_t CDF::query(float complexity) const {
+// returns the count of chunks which have complexity >= threshold
+size_t CDF::query(float threshold) const {
     auto compare_to_first = [](auto&& p, float v) { return p.first < v; };
-    auto it = std::lower_bound(inner.begin(), inner.end(), complexity, compare_to_first);
+    auto it = std::lower_bound(inner.begin(), inner.end(), threshold, compare_to_first);
     if (it == inner.end())
         return 0;
     return it->second;
 }
 
+
+// Returns the maximum complexity threshold that can be used if you need to store the specified
+// number of chunks.
+//
+// A negative value indicates that many chunks can not fit at any threshold
 float CDF::max_threshold_to_store(size_t chunk_count) const {
     size_t granularity = 512;
     for (size_t i = 0; i <= granularity; i++) {
@@ -99,15 +123,17 @@ float CDF::max_threshold_to_store(size_t chunk_count) const {
     return -1.0f;
 }
 
-float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover_chunks,
+// Calculates the maximum threshold that can be used to store the given number of chunks in the
+// given cover, using the specified bitplanes
+float calculate_max_threshold(size_t message_chunk_count, DataChunkArray const& cover,
     std::vector<size_t> const& bitplane_priority)
 {
-    CDF cdf(cover_chunks, bitplane_priority);
+    CDF cdf(cover, bitplane_priority);
     float threshold = cdf.max_threshold_to_store(message_chunk_count);
     threshold = std::min(0.5f, threshold);
 
-    // CDF::max_threshold_to_store returns a negative number if the message can't fit,
-    // but we will just clamp it to 0 and store a partial message in that case
+    // CDF::max_threshold_to_store returns a negative number if the message can't fit, but we will
+    // just clamp it to 0 and store a partial message in that case
     threshold = std::max(0.0f, threshold);
 
     return threshold;
