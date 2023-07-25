@@ -3,9 +3,12 @@
 #include <iostream>
 #include <cassert>
 
+#include <stb_image.h>
+#include <stb_image_write.h>
+
 #include "image.h"
-#include "stb/stb_image.h"
-#include "stb/stb_image_write.h"
+// #include "stb/stb_image.h"
+// #include "stb/stb_image_write.h"
 #include "utility.h"
 
 void Image::save(std::string const& filename) {
