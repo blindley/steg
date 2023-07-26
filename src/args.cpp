@@ -27,7 +27,7 @@ void print_usage(char const* exe_name) {
         << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
     std::cout << "    " << exe_short_name
         << " --hide --random <count> -c <coverfile> -o <stego file> "
-        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";    
+        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
     std::cout << "    " << exe_short_name << " --extract -s <stego file> -o <message file>\n";
     std::cout << "    " << exe_short_name << " --measure -c <cover file> -t <threshold>\n";
     std::cout << "    " << exe_short_name << " --help\n";
@@ -46,7 +46,7 @@ void print_help(char const* argv0) {
         "  --measure           Measure hiding capacity of an image",
         "  --help              Display this help message",
         "",
-        "Hide Mode Options:",
+        "Hide/Measure Mode Options:",
         "  -c <coverfile>      Cover image to hide message in",
         "  -m <message file>   Message file to hide",
         "  --random <count>    Fill cover file with <count> random bytes",
@@ -63,6 +63,10 @@ void print_help(char const* argv0) {
         "Measure Mode Options:",
         "  -c <cover file>     Cover image to measure for capacity",
         "  -t <threshold>      Complexity threshold to measure for [0,0.5]",
+        "  --rmax <n>          Max red bitplanes to use ([0,8], default=8)",
+        "  --gmax <n>          Max green bitplanes to use ([0,8], default=8)",
+        "  --bmax <n>          Max blue bitplanes to use ([0,8], default=8)",
+        "  --amax <n>          Max alpha bitplanes to use ([0,8], default=8)",
     };
 
     for (auto& line : help_lines) {

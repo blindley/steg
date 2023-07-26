@@ -19,7 +19,8 @@ static size_t count_bit_differences(u8 a, u8 b) {
 
 // Measure the complexity of a chunk
 //
-// Complexity is measured by counting the vertical and horizontal bit transitions in a chunk.
+// Complexity is measured by counting the vertical and horizontal bit transitions in a chunk. Then
+// dividing by 112, which is the maximum possible number of transitions in an 8x8 chunk.
 float DataChunk::measure_complexity() const {
     size_t count = 0;
     for (size_t i = 0; i < 8; i++) {

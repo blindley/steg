@@ -15,6 +15,7 @@ struct Measurements {
 struct HideStats {
     float threshold;
     size_t chunks_used;
+    size_t chunks_per_bitplane;
     size_t chunks_used_per_bitplane[32];
     size_t message_size;
     size_t message_bytes_hidden;

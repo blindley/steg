@@ -322,6 +322,7 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
 {
     HideStats stats = {};
     stats.message_size = message.size();
+    stats.chunks_per_bitplane = (img.width / 8) * (img.height / 8);
 
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
@@ -363,6 +364,7 @@ HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bma
 
     HideStats stats = {};
     stats.message_size = message.size();
+    stats.chunks_per_bitplane = (img.width / 8) * (img.height / 8);
 
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
