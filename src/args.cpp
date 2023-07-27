@@ -103,6 +103,9 @@ void print_help(char const* argv0) {
         "       Extract hidden message and output to standard output. Not",
         "       recommended on Windows unless you know for sure that the",
         "       hidden message is text.",
+        "",
+        "  {steg.exe} --hide -c cover.jpg --random 10000 -o hidden.png",
+        "       Hide 10000 random bytes in cover.jpg. Output to hidden.png.",
     };
 
     auto exe_short_name = get_exe_short_name(argv0);
