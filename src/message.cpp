@@ -152,6 +152,8 @@ std::vector<u8> unformat_message(DataChunkArray formatted_data) {
     size_t formatted_size = message_size + sizeof(SIGNATURE) + sizeof(u32);
     formatted_size = (formatted_size + 62) / 63 * 64;
     formatted_size = std::min(formatted_size, formatted_data.chunks.size() * 8);
+    size_t max_possible_size = formatted_size / 64 * 63 - sizeof(SIGNATURE) - sizeof(u32);
+    size_t actual_message_size = std::min((size_t)message_size, max_possible_size);
 
     auto chunk_count = formatted_size / 8;
     auto group_count = chunk_count / 8;
@@ -162,9 +164,9 @@ std::vector<u8> unformat_message(DataChunkArray formatted_data) {
     }
 
     std::vector<u8> message;
-    message.reserve(message_size);
+    message.reserve(actual_message_size);
     
-    for (size_t i = 0; i < message_size; i++) {
+    for (size_t i = 0; i < actual_message_size; i++) {
         if (in_index % 64 == 0) {
             in_index++;
         }
