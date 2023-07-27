@@ -1,9 +1,12 @@
 #include <algorithm>
 #include <map>
 #include <vector>
+#include <stdexcept>
 
 #include "datachunk.h"
 #include "bpcs.h"
+
+extern u8 const MAGIC_14[14];
 
 // Counts all the bit transitions, from 1 to 0, or from 0 to 1, in a byte
 static size_t count_bit_transitions(u8 byte) {

@@ -64,6 +64,16 @@ std::array<DataChunk, 2> generate_magic_chunks(u8 rmax, u8 gmax, u8 bmax, u8 ama
     return chunks;
 }
 
+// Check if this data chunk is one of the magic chunks
+bool is_magic(DataChunk const& chunk, size_t magic_chunk_index) {
+    if (magic_chunk_index < 0 || magic_chunk_index > 1) {
+        auto err = "invalid magic chunk index, you shouldn't be here";
+        throw std::logic_error(err);
+    }
+    auto magic_bytes = MAGIC_14 + magic_chunk_index * 7;
+    return std::memcmp(chunk.bytes, magic_bytes, 7) == 0;
+}
+
 // Returns an array containing which specific bitplanes to use, and in what order, based on the
 // number of bitplanes to use per channel.
 //
@@ -271,8 +281,7 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover)
 
             size_t chunk_index = bitplane_index * chunks_per_bitplane + ci;
             auto& cover_chunk = cover.chunks[chunk_index];
-            u8 const* magic_bytes = MAGIC_14 + magic_chunk_index * 7;
-            if (std::memcmp(cover_chunk.bytes, magic_bytes, 7) == 0) {
+            if (is_magic(cover_chunk, magic_chunk_index)) {
                 magic_chunks[magic_chunk_index++] = cover_chunk;
             }
         }
