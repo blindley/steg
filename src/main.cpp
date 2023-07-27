@@ -5,7 +5,6 @@
 #include "message.h"
 
 #include <iostream>
-#include <format>
 #include <fstream>
 #include <iomanip>
 #include <random>

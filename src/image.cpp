@@ -1,7 +1,7 @@
-#include <format>
 #include <cstdint>
 #include <iostream>
 #include <cassert>
+#include <sstream>
 
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -22,7 +22,9 @@ void Image::save(std::string const& filename) {
     else if (ext == "tga")
         success = stbi_write_tga(filename.c_str(), this->width, this->height, 4, this->pixel_data.data());
     else {
-        auto err = std::format("unsupported file extension .{}", ext);
+        std::ostringstream oss;
+        oss << "unsupported file extension ." << ext;
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
     
@@ -30,7 +32,9 @@ void Image::save(std::string const& filename) {
         std::cout << "success writing " << filename << '\n';
     } else {
         auto reason = stbi_failure_reason();
-        auto err = std::format("failure writing \"{}\"; reason: {}", filename, reason);
+        std::ostringstream oss;
+        oss << "failure writing \"" << filename << "\"; reason: " << reason;
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 }
@@ -42,7 +46,9 @@ Image Image::load(std::string const& filename) {
     auto data = stbi_load(filename.c_str(), &x, &y, nullptr, 4);
     if (data == nullptr) {
         auto reason = stbi_failure_reason();
-        auto err = std::format("unable to load \"{}\"; reason: {}", filename, reason);
+        std::ostringstream oss;
+        oss << "unable to load \"" << filename << "\"; reason: " << reason;
+        auto err = oss.str();
         throw std::runtime_error(err);
     } else {
         img.width = x;

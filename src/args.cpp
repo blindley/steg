@@ -1,12 +1,12 @@
 #include "args.h"
 #include "utility.h"
 
-#include <format>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 #include <iostream>
+#include <sstream>
 
 std::string get_exe_short_name(char const* argv0) {
     char const* after_last_slash = argv0;
@@ -86,7 +86,9 @@ struct RawArgs {
         try {
             return value_args.at(arg_name);
         } catch(...) {
-            auto err = std::format("missing argument {}", arg_name);
+            std::ostringstream oss;
+            oss << "missing argument " << arg_name;
+            auto err = oss.str();
             throw std::runtime_error(err);
         }
     }
@@ -104,7 +106,10 @@ struct RawArgs {
                 return value;
             }
         } catch(...) {}
-        auto err = std::format("{} should be integer in range [{}, {}]", arg_name, low, high);
+
+        std::ostringstream oss;
+        oss << arg_name << " should be integer in range [" << low << ", " << high << "]";
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
@@ -121,7 +126,9 @@ struct RawArgs {
                 return value;
             }
         } catch(...) {}
-        auto err = std::format("{} should be real number in range [{}, {}]", arg_name, low, high);
+        std::ostringstream oss;
+        oss << arg_name << " should be real number in range [" << low << ", " << high << "]";
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 };
@@ -136,7 +143,9 @@ RawArgs collect_raw_args(int argc, char** _argv,
 
     for (size_t i = 1; i < argv.size(); i++) {
         if (flags.contains(argv[i]) || value_args.contains(argv[i])) {
-            auto err = std::format("duplicate argument {}", argv[i]);
+            std::ostringstream oss;
+            oss << "duplicate argument " << argv[i];
+            auto err = oss.str();
             throw std::runtime_error(err);
         }
 
@@ -148,7 +157,9 @@ RawArgs collect_raw_args(int argc, char** _argv,
         if (value_arg_names.contains(argv[i])) {
             ++i;
             if (i == argv.size()) {
-                auto err = std::format("unexpected end of argument list. missing value for {}", argv[i-1]);
+                std::ostringstream oss;
+                oss << "unexpected end of argument list. missing value for" << argv[i-1];
+                auto err = oss.str();
                 throw std::runtime_error(err);
             }
 
@@ -156,7 +167,9 @@ RawArgs collect_raw_args(int argc, char** _argv,
             continue;
         }
 
-        auto err = std::format("unexpected argument {}", argv[i]);
+        std::ostringstream oss;
+        oss << "unexpected argument " << argv[i];
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
@@ -188,12 +201,16 @@ Args parse_args(int argc, char** argv) {
 
     int num_modes = (int)args.hide + (int)args.extract + (int)args.measure;
     if (num_modes == 0) {
-        auto err = std::format("no mode selected (--hide, --extract or --measure)");
+        std::ostringstream oss;
+        oss << "no mode selected (--hide, --extract or --measure)";
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
     if (num_modes > 1) {
-        auto err = "multiple modes selected (choose one of --hide, --extract or --measure)";
+        std::ostringstream oss;
+        oss << "multiple modes selected (choose one of --hide, --extract or --measure)";
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
@@ -219,7 +236,9 @@ Args parse_args(int argc, char** argv) {
 
     for (auto& arg : required_args) {
         if (!raw_args.arg_is_present(arg)) {
-            auto err = std::format("missing argument {}", arg);
+            std::ostringstream oss;
+            oss << "missing argument " << arg;
+            auto err = oss.str();
             throw std::runtime_error(err);
         }
     }
@@ -231,7 +250,9 @@ Args parse_args(int argc, char** argv) {
 
     for (auto& arg : all_args) {
         if (!allowed_args.contains(arg)) {
-            auto err = std::format("unexpected argument {}", arg);
+            std::ostringstream oss;
+            oss << "unexpected argument " << arg;
+            auto err = oss.str();
             throw std::runtime_error(err);
         }
     }
@@ -252,7 +273,9 @@ Args parse_args(int argc, char** argv) {
 
         auto ext = get_file_extension(args.output_file);
         if (ext != "bmp" && ext != "png" && ext != "tga") {
-            auto err = std::format("output file extension must be one of bmp, png or tga");
+            std::ostringstream oss;
+            oss << "output file extension must be one of bmp, png or tga";
+            auto err = oss.str();
             throw std::runtime_error(err);
         }
     } else if (args.extract) {

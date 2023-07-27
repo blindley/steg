@@ -1,7 +1,7 @@
 #include <fstream>
 #include <stdexcept>
-#include <format>
 #include <random>
+#include <sstream>
 
 #include "utility.h"
 
@@ -40,14 +40,18 @@ std::string get_file_extension(std::string const& filename) {
 void save_file(std::string const& filename, u8 const* data, size_t len) {
     std::ofstream ofstr(filename, std::ios::binary);
     if (!ofstr) {
-        auto err = std::format("unable to open {} for writing", filename);
+        std::ostringstream oss;
+        oss << "unable to open " << filename << " for writing";
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
     ofstr.write((char const*)data, len);
 
     if (!ofstr) {
-        auto err = std::format("error writing to {}", filename);
+        std::ostringstream oss;
+        oss << "error writing to " << filename;
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 }
@@ -60,7 +64,9 @@ std::vector<u8> load_file(std::string const& filename) {
     std::ifstream ifstr(filename, std::ios::binary);
 
     if (!ifstr) {
-        auto err = std::format("unable to open {}", filename);
+        std::ostringstream oss;
+        oss << "unable to open " << filename;
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
@@ -69,7 +75,9 @@ std::vector<u8> load_file(std::string const& filename) {
     ifstr.seekg(0, std::ios::beg);
 
     if (!ifstr) {
-        auto err = std::format("error reading {}", filename);
+        std::ostringstream oss;
+        oss << "error reading " << filename;
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
@@ -79,7 +87,9 @@ std::vector<u8> load_file(std::string const& filename) {
     ifstr.read((char*)data.data(), size);
 
     if (!ifstr) {
-        auto err = std::format("error reading {}", filename);
+        std::ostringstream oss;
+        oss << "error reading " << filename;
+        auto err = oss.str();
         throw std::runtime_error(err);
     }
 
