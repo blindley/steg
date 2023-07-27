@@ -8,6 +8,14 @@
 #include <iostream>
 #include <sstream>
 
+void replace_substring(std::string& str, std::string pattern, std::string replacement) {
+    size_t i = 0;
+    while ((i = str.find(pattern, i)) != std::string::npos) {
+        str.replace(i, pattern.size(), replacement);
+        i += replacement.size();
+    }
+}
+
 std::string get_exe_short_name(char const* argv0) {
     char const* after_last_slash = argv0;
     for (size_t i = 0; argv0[i] != 0; i++) {
@@ -21,15 +29,20 @@ std::string get_exe_short_name(char const* argv0) {
 void print_usage(char const* exe_name) {
     auto exe_short_name = get_exe_short_name(exe_name);
 
+    char const* bitplane_args = "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]";
+
     std::cout << "Usage:\n";
     std::cout << "    " << exe_short_name
         << " --hide -m <message file> -c <coverfile> -o <stego file> "
-        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
+        << bitplane_args << "\n";
     std::cout << "    " << exe_short_name
         << " --hide --random <count> -c <coverfile> -o <stego file> "
-        << "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
-    std::cout << "    " << exe_short_name << " --extract -s <stego file> -o <message file>\n";
-    std::cout << "    " << exe_short_name << " --measure -c <cover file> -t <threshold>\n";
+        << bitplane_args << "\n";
+    std::cout << "    " << exe_short_name
+        << " --extract -s <stego file> -o <message file>\n";
+    std::cout << "    " << exe_short_name
+        << " --measure -c <cover file> -t <threshold> "
+        << bitplane_args << "\n";
     std::cout << "    " << exe_short_name << " --help\n";
 
     std::cout << "\n(try --help for more details)\n";
@@ -46,7 +59,7 @@ void print_help(char const* argv0) {
         "  --measure           Measure hiding capacity of an image",
         "  --help              Display this help message",
         "",
-        "Hide/Measure Mode Options:",
+        "Hide Mode Options:",
         "  -c <coverfile>      Cover image to hide message in",
         "  -m <message file>   Message file to hide",
         "  --random <count>    Fill cover file with <count> random bytes",
@@ -67,10 +80,37 @@ void print_help(char const* argv0) {
         "  --gmax <n>          Max green bitplanes to use ([0,8], default=8)",
         "  --bmax <n>          Max blue bitplanes to use ([0,8], default=8)",
         "  --amax <n>          Max alpha bitplanes to use ([0,8], default=8)",
+        "",
+        "Examples:",
+        "  {steg.exe} --hide -c cover.jpg -m message.txt --amax 0 -o hidden.png",
+        "       Hide message.txt in cover.jpg. Do not use any bitplanes from the",
+        "       alpha channel. Output to hidden.png",
+        "",
+        "  {steg.exe} --extract -s hidden.png -o extracted.txt",
+        "       Extract a hidden message from hidden.png. Output to extracted.txt",
+        "",
+        "  {steg.exe} --measure -s cover.bmp -t 0.3 --rmax 4 --gmax 4 --bmax 4 --amax 2",
+        "       Measure the hiding capacty for cover.bmp at complexity threshold",
+        "       = 0.3, using 4 bitplanes each for the red, green and blue channels,",
+        "       and 2 bitplanes for the alpha channel.",
+        "",
+        "  {steg.exe} --hide -c cover.png -m - -o hidden.tga",
+        "       Read a message from standard input (note the '-' in place of a",
+        "       filename), hide it in cover.png, output to hidden.tga. The",
+        "       message can also be piped in this way.",
+        "",
+        "  {steg.exe} --extract -s hidden.tga -o -",
+        "       Extract hidden message and output to standard output. Not",
+        "       recommended on Windows unless you know for sure that the",
+        "       hidden message is text.",
     };
 
+    auto exe_short_name = get_exe_short_name(argv0);
+
     for (auto& line : help_lines) {
-        std::cout << line << '\n';
+        std::string formatted = line;
+        replace_substring(formatted, "{steg.exe}", exe_short_name);
+        std::cout << formatted << '\n';
     }
 }
 
