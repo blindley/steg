@@ -7,7 +7,7 @@
 #include <stdexcept>
 
 u8 const SIGNATURE[] = { 0x2F, 0x64, 0xA9 };
-u8 const SIG14[] = { 53, 219, 170, 213, 10, 183, 76, 85, 179, 82, 181, 170, 55, 85 };
+u8 const MAGIC_14[] = { 53, 219, 170, 213, 10, 183, 76, 85, 179, 82, 181, 170, 55, 85 };
 
 // Reads 4 bytes, interpreting them as a big-endian u32
 u32 u32_from_bytes_be(u8 const* bytes) {
@@ -83,7 +83,7 @@ void de_conjugate_group(DataChunk* chunk_ptr) {
 // Second, we want to be confident that we aren't just pulling some random bytes out of an image,
 // and there actually is a message hidden here. So we insert three marker bytes which are just some
 // random numbers generated one time. Note that this is now redundant, because we have a much more
-// unique 14 byte signature that precedes the message and is used for determining which bitplanes
+// unique 14 byte magic number that precedes the message and is used for determining which bitplanes
 // were actually used for hiding the message.
 //
 // Third, we need to make sure all of the message chunks are complex, otherwise the extractor won't
@@ -152,6 +152,10 @@ std::vector<u8> unformat_message(DataChunkArray formatted_data) {
     size_t formatted_size = message_size + sizeof(SIGNATURE) + sizeof(u32);
     formatted_size = (formatted_size + 62) / 63 * 64;
     formatted_size = std::min(formatted_size, formatted_data.chunks.size() * 8);
+
+    // If stored message exceeded capacity, and only a partial message was stored,
+    // message_size will still be the original file message size, so truncate it
+    // to the actual capacity
     size_t max_possible_size = formatted_size / 64 * 63 - sizeof(SIGNATURE) - sizeof(u32);
     size_t actual_message_size = std::min((size_t)message_size, max_possible_size);
 

@@ -7,7 +7,7 @@
 #include <vector>
 
 extern u8 const SIGNATURE[3];
-extern u8 const SIG14[14];
+extern u8 const MAGIC_14[14];
 
 DataChunkArray format_message(std::vector<u8> const& message);
 std::vector<u8> unformat_message(DataChunkArray formatted_data);
