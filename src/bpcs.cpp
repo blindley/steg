@@ -9,11 +9,7 @@
 #include <bit>
 #include <random>
 
-#include "bpcs.h"
-#include "message.h"
-#include "utility.h"
-#include "image.h"
-#include "datachunk.h"
+#include "declarations.h"
 
 // Converts a single byte to gray code
 //

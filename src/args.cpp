@@ -1,12 +1,11 @@
-#include "args.h"
-#include "utility.h"
-
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 #include <iostream>
 #include <sstream>
+
+#include "declarations.h"
 
 void replace_substring(std::string& str, std::string pattern, std::string replacement) {
     size_t i = 0;

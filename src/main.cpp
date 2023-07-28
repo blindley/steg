@@ -1,9 +1,3 @@
-#include "args.h"
-#include "image.h"
-#include "utility.h"
-#include "bpcs.h"
-#include "message.h"
-
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -11,6 +5,8 @@
 #include <string>
 #include <sstream>
 #include <vector>
+
+#include "declarations.h"
 
 void main_impl(int argc, char** argv);
 void show_stats(HideStats const& stats, bool measure_mode);

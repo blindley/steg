@@ -1,10 +1,6 @@
-
-#include "datachunk.h"
-// #include "bpcs.h"
-#include "utility.h"
-#include "message.h"
-
 #include <stdexcept>
+
+#include "declarations.h"
 
 u8 const SIGNATURE[] = { 0x2F, 0x64, 0xA9 };
 u8 const MAGIC_14[] = { 53, 219, 170, 213, 10, 183, 76, 85, 179, 82, 181, 170, 55, 85 };

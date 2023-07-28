@@ -3,7 +3,7 @@
 #include <random>
 #include <sstream>
 
-#include "utility.h"
+#include "declarations.h"
 
 u8 get_bit(u8 const* data, size_t bit_index) {
     size_t byte_index = bit_index / 8;
