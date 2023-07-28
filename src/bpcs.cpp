@@ -63,6 +63,10 @@ std::array<DataChunk, 2> generate_magic_chunks(u8 rmax, u8 gmax, u8 bmax, u8 ama
 // Check if this data chunk is one of the magic chunks
 bool is_magic(DataChunk const& chunk, size_t magic_chunk_index) {
     if (magic_chunk_index < 0 || magic_chunk_index > 1) {
+        // note that any time we throw a logic_error, that means there is a bug in the code that
+        // needs to be fixed, whereas a runtime_error occurs when the program runs into an error
+        // based on input, such as incorrect parameters on the command line, or failure in reading a
+        // file
         auto err = "invalid magic chunk index, you shouldn't be here";
         throw std::logic_error(err);
     }
@@ -70,8 +74,19 @@ bool is_magic(DataChunk const& chunk, size_t magic_chunk_index) {
     return std::memcmp(chunk.bytes, magic_bytes, 7) == 0;
 }
 
-// Returns an array containing which specific bitplanes to use, and in what order, based on the
-// number of bitplanes to use per channel.
+// Returns an array containing which specific bitplanes to use, and in what order
+//
+// The resulting array acts as a lookup table. bitplane_priority[0] will be the first bitplane that
+// should be used. A loop similar to the following will appear in several functions in this file
+//
+//     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
+//     for (size_t i = 0; i < bitplane_priority.size(); i++) {
+//         size_t bitplane_index = bitplane_priority[i];
+//         ...
+//     }
+//
+// That will iterate over the usable bitplanes, as determined by rmax, gmax, bmax and amax, which
+// are provided by the user during hiding, or extracted from the image during extraction.
 //
 // The bitplanes are numbered, as far as this program is concerned, as follows,
 // - 0-7   = Red (0 is MSB, 7 is LSB)
@@ -105,12 +120,12 @@ std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 ama
 
 // Common code for chunkify and de_chunkify
 //
-// chunkify and de_chunkify require almost the exact same code structure, with three nested for
+// chunkify and de_chunkify require almost the exact same code structure, with four nested for
 // loops. There is a slight difference in setup, and a slight difference in the innermost portion of
 // the nested loops. In order to keep them in sync and not repeat the same code twice, this template
 // function extracts the common bits, and takes callbacks to handle the differences
-template<typename ImageT, typename Init, typename Transfer>
-void chunkify_common(ImageT& img, Init init_op, Transfer transfer_op) {
+template<typename ImageT, typename InitT, typename TransferT>
+void chunkify_common(ImageT& img, InitT init_op, TransferT transfer_op) {
     size_t chunks_in_width = img.width / 8;
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
@@ -120,7 +135,11 @@ void chunkify_common(ImageT& img, Init init_op, Transfer transfer_op) {
 
     auto pixel_data_ptr = img.pixel_data.data();
 
-    std::mt19937_64 gen(img.width * 1000003 + img.height);
+    // Randomize the order by which we iterate through the chunks of each bitplane. Unlike the C
+    // rand() function, the random number generators provided by the C++ standard library are
+    // guaranteed to be reproducible for any particular seed across all platforms.
+    u64 seed = img.width * 1000003 + image.height;
+    std::mt19937_64 gen(seed);
     std::vector<size_t> chunk_priority;
     chunk_priority.resize(chunks_per_bitplane);
     for (size_t i = 0; i < chunks_per_bitplane; i++)
@@ -130,8 +149,8 @@ void chunkify_common(ImageT& img, Init init_op, Transfer transfer_op) {
     for (size_t bp = 0; bp < 32; bp++) {
         size_t bitplane_index = bp;
 
-        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
-            size_t chunk_index = chunk_priority[_chunk_index];
+        for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
+            size_t chunk_index = chunk_priority[ci];
             size_t chunk_x_index = chunk_index % chunks_in_width;
             size_t chunk_y_index = chunk_index / chunks_in_width;
 
@@ -265,7 +284,7 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover)
     size_t magic_chunk_index = 0;
     auto bitplane_priority = generate_bitplane_priority(8, 8, 8, 8);
     for (size_t bp = 0; bp < bitplane_priority.size(); bp++) {
-        if (magic_chunk_index == 2)
+        if (magic_chunk_index == 2) // if both magic chunks have bee found
             break;
 
         size_t bitplane_index = bitplane_priority[bp];
@@ -286,6 +305,7 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover)
         throw std::runtime_error(err);
     }
 
+    // The last byte of each magic chunk contains the bitplanes used per color channel
     u8 rmax = (magic_chunks[0].bytes[7] >> 4) & 0xF;
     u8 gmax = magic_chunks[0].bytes[7] & 0xF;
     u8 bmax = (magic_chunks[1].bytes[7] >> 4) & 0xF;
@@ -303,8 +323,13 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover)
             size_t chunk_index = bitplane_index * chunks_per_bitplane + ci;
             auto& cover_chunk = cover.chunks[chunk_index];
             auto complexity = cover_chunk.measure_complexity();
+            // When extracting, we don't have to care about the specific threshold that was used in
+            // hiding, because the hiding algorithm just conjugates all message chunks with
+            // complexity < 0.5, changing them to be >= 0.5
             if (complexity >= 0.5) {
                 if (magic_chunk_index < 2) {
+                    // The first two complex chunks will be the magic chunks. But we already checked
+                    // the content of the magic chunks above, so we just skip over them.
                     magic_chunk_index++;
                 } else {
                     formatted_message.chunks.push_back(cover_chunk);
@@ -329,7 +354,7 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover)
 void alter_magic_chunks(DataChunkArray& chunk_data) {
     for (auto& chunk : chunk_data) {
         if (is_magic(chunk, 0) || is_magic(chunk, 1)) {
-            chunk.bytes[0] ^= 0x80; 
+            chunk.bytes[0] ^= 0x80; // flip the first bit of the first byte
         }
     }
 }
