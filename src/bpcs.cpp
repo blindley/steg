@@ -119,8 +119,8 @@ void chunkify_common(ImageT& img, Init init_op, Transfer transfer_op) {
     size_t chunks_in_height = img.height / 8;
     size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
 
-    auto planed_data_ptr = init_op(chunks_per_bitplane);
-    size_t pd_bit_index = 0;
+    auto chunk_data_ptr = init_op(chunks_per_bitplane);
+    size_t chunk_data_bit_index = 0;
 
     auto pixel_data_ptr = img.pixel_data.data();
 
@@ -145,10 +145,11 @@ void chunkify_common(ImageT& img, Init init_op, Transfer transfer_op) {
                     size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
                     size_t pixel_index = pixel_y * img.width + pixel_x;
                     size_t byte_index = pixel_index * 4;
-                    size_t bit_index = byte_index * 8 + bitplane_index;
+                    size_t pixel_data_bit_index = byte_index * 8 + bitplane_index;
 
-                    transfer_op(pixel_data_ptr, bit_index, planed_data_ptr, pd_bit_index);
-                    ++pd_bit_index;
+                    transfer_op(pixel_data_ptr, pixel_data_bit_index,
+                        chunk_data_ptr, chunk_data_bit_index);
+                    ++chunk_data_bit_index;
                 }
             }
         }
@@ -168,20 +169,22 @@ void chunkify_common(ImageT& img, Init init_op, Transfer transfer_op) {
 // bytes as an array of bits. This makes the process of copying bits about as simple as it is to
 // copy bytes.
 DataChunkArray chunkify(Image const& img) {
-    DataChunkArray planed_data;
+    DataChunkArray chunk_data;
     auto init_op = [&](size_t chunks_per_bitplane) -> u8* {
-        planed_data.chunks.resize(chunks_per_bitplane * 32);
-        return (u8*)planed_data.chunks.data();
+        chunk_data.chunks.resize(chunks_per_bitplane * 32);
+        return chunk_data.bytes_begin();
     };
 
-    auto transfer_op = [](u8 const* pixel_data_ptr, size_t bit_index, u8* planed_data_ptr, size_t pd_bit_index) {
-        auto bit_value = get_bit(pixel_data_ptr, bit_index);
-        set_bit(planed_data_ptr, pd_bit_index, bit_value);
+    auto transfer_op = [](u8 const* pixel_data_ptr, size_t pixel_data_bit_index,
+        u8* chunk_data_ptr, size_t chunk_data_bit_index)
+    {
+        auto bit_value = get_bit(pixel_data_ptr, pixel_data_bit_index);
+        set_bit(chunk_data_ptr, chunk_data_bit_index, bit_value);
     };
 
     chunkify_common(img, init_op, transfer_op);
 
-    return planed_data;
+    return chunk_data;
 }
 
 // Inserts an array of DataChunks back into an image.
@@ -192,14 +195,16 @@ DataChunkArray chunkify(Image const& img) {
 //
 // The structure of the loops is identical to that of chunkify(...), with the only difference being
 // which array we call get_bit(...) and set_bit(...) on.
-void de_chunkify(Image& img, DataChunkArray const& planed_data) {
+void de_chunkify(Image& img, DataChunkArray const& chunk_data) {
     auto init_op = [&](size_t chunks_per_bitplane) {
-        return planed_data.bytes_begin();
+        return chunk_data.bytes_begin();
     };
 
-    auto transfer_op = [](u8* pixel_data_ptr, size_t bit_index, u8 const* planed_data_ptr, size_t pd_bit_index) {
-        auto bit_value = get_bit(planed_data_ptr, pd_bit_index);
-        set_bit(pixel_data_ptr, bit_index, bit_value);
+    auto transfer_op = [](u8* pixel_data_ptr, size_t pixel_data_bit_index,
+        u8 const* chunk_data_ptr, size_t chunk_data_bit_index)
+    {
+        auto bit_value = get_bit(chunk_data_ptr, chunk_data_bit_index);
+        set_bit(pixel_data_ptr, pixel_data_bit_index, bit_value);
     };
 
     chunkify_common(img, init_op, transfer_op);
@@ -327,12 +332,12 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
 
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
-    auto planed_data = chunkify(img);
+    auto chunk_data = chunkify(img);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
     float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2,
-        planed_data, bitplane_priority);
+        chunk_data, bitplane_priority);
     stats.threshold = threshold;
-    hide_formatted_message(stats, threshold, planed_data, formatted_data,
+    hide_formatted_message(stats, threshold, chunk_data, formatted_data,
         rmax, gmax, bmax, amax);
     if (stats.chunks_used < 9) {
         stats.message_bytes_hidden = 0;
@@ -341,7 +346,7 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
     }
     stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
 
-    de_chunkify(img, planed_data);
+    de_chunkify(img, chunk_data);
     gray_code_to_binary_inplace(img.pixel_data);
 
     return stats;
@@ -352,8 +357,8 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
 // The high level function that ties everything together for the extracting algorithm.
 std::vector<u8> bpcs_unhide_message(Image& img) {
     binary_to_gray_code_inplace(img.pixel_data);
-    auto planed_data = chunkify(img);
-    auto formatted_data = unhide_formatted_message(planed_data);
+    auto chunk_data = chunkify(img);
+    auto formatted_data = unhide_formatted_message(chunk_data);
     auto message = unformat_message(formatted_data);
     return message;
 }
@@ -370,9 +375,9 @@ HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bma
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
-    auto planed_data = chunkify(img);
+    auto chunk_data = chunkify(img);
     stats.threshold = threshold;
-    hide_formatted_message(stats, threshold, planed_data, formatted_data,
+    hide_formatted_message(stats, threshold, chunk_data, formatted_data,
         rmax, gmax, bmax, amax);
     if (stats.chunks_used < 9) {
         stats.message_bytes_hidden = 0;
