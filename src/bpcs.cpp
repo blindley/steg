@@ -136,8 +136,10 @@ void chunkify_common(ImageT& img, InitT init_op, TransferT transfer_op) {
     auto pixel_data_ptr = img.pixel_data.data();
 
     // Randomize the order by which we iterate through the chunks of each bitplane. Unlike the C
-    // rand() function, the random number generators provided by the C++ standard library are
-    // guaranteed to be reproducible for any particular seed across all platforms.
+    // rand() function, the random number generators provided in the C++ <random> header are
+    // guaranteed to be reproducible for any particular seed across all standard compliant
+    // platforms. This is potentially a good place to introduce some encryption, by using the
+    // password to modify the seed.
     u64 seed = img.width * 1000003 + img.height;
     std::mt19937_64 gen(seed);
     std::vector<size_t> chunk_priority;
@@ -147,6 +149,10 @@ void chunkify_common(ImageT& img, InitT init_op, TransferT transfer_op) {
 
     for (size_t bp = 0; bp < 32; bp++) {
         size_t bitplane_index = bp;
+
+        // We shuffle the chunk priority for every bitplane, so the order is different for each one.
+        // This probably doesn't do anything to help with detectability, but perhaps it makes
+        // extraction harder.
         std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
         for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
@@ -177,7 +183,7 @@ void chunkify_common(ImageT& img, InitT init_op, TransferT transfer_op) {
 // one bitplane at a time. The order in which the chunks are pulled out in each bitplane is
 // randomized using a reproducible random number generator with a fixed seed. For images in which
 // the width or height is not divisible by 8, the excess pixels on the right side or bottom are
-// simply skipped over, so there is no problem in handling images of any sizes.
+// simply skipped over, so there is no problem in handling images of any size.
 //
 // This requires a lot of intricate work shuffling around bits. But this process is greatly
 // simplified by the get_bit(...) and set_bit(...) functions, which essentially treat an array of
@@ -186,6 +192,7 @@ void chunkify_common(ImageT& img, InitT init_op, TransferT transfer_op) {
 DataChunkArray chunkify(Image const& img) {
     DataChunkArray chunk_data;
     auto init_op = [&](size_t chunks_per_bitplane) -> u8* {
+        // Allocate space for all 32 bitplanes of chunk data
         chunk_data.chunks.resize(chunks_per_bitplane * 32);
         return chunk_data.bytes_begin();
     };
@@ -193,10 +200,13 @@ DataChunkArray chunkify(Image const& img) {
     auto transfer_op = [](u8 const* pixel_data_ptr, size_t pixel_data_bit_index,
         u8* chunk_data_ptr, size_t chunk_data_bit_index)
     {
+        // transfer one bit from the pixel data to the chunk data
         auto bit_value = get_bit(pixel_data_ptr, pixel_data_bit_index);
         set_bit(chunk_data_ptr, chunk_data_bit_index, bit_value);
     };
 
+    // init_op and transfer_op are callback functions, which are called in chunkify_common. So no
+    // work has actually been done so far in this function until we call chunkify_common
     chunkify_common(img, init_op, transfer_op);
 
     return chunk_data;
@@ -212,16 +222,21 @@ DataChunkArray chunkify(Image const& img) {
 // which array we call get_bit(...) and set_bit(...) on.
 void de_chunkify(Image& img, DataChunkArray const& chunk_data) {
     auto init_op = [&](size_t chunks_per_bitplane) {
+        // nothing to allocate in this case, just return a pointer to the chunk data
         return chunk_data.bytes_begin();
     };
 
     auto transfer_op = [](u8* pixel_data_ptr, size_t pixel_data_bit_index,
         u8 const* chunk_data_ptr, size_t chunk_data_bit_index)
     {
+        // transfer one bit from chunk data to pixel data, the opposite of what chunkify does
         auto bit_value = get_bit(chunk_data_ptr, chunk_data_bit_index);
         set_bit(pixel_data_ptr, pixel_data_bit_index, bit_value);
     };
 
+    // As with chunkify, init_op and transfer_op are callback functions, which are called in
+    // chunkify_common. So no work has actually been done so far in this function until we call
+    // chunkify_common
     chunkify_common(img, init_op, transfer_op);
 }
 
@@ -405,6 +420,10 @@ std::vector<u8> bpcs_unhide_message(Image& img) {
 
 // Given an image and a complexity threshold, determines the image's hiding capacity at that
 // threshold.
+//
+// Simply makes a message that definitely won't fit, and tries to hide it. The hide function will
+// report how many bytes were actually hidden. Probably not the most efficient way to do this,
+// but it works, and re-uses the code I already have.
 HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax) {
     std::vector<u8> message(img.pixel_data.size());
 
