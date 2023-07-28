@@ -13,7 +13,6 @@ add_executable(steg
     src/message.cpp
     src/datachunk.cpp
     src/utility.cpp
-    src/stb.cpp
 )
 
 enable_testing()
@@ -25,7 +24,6 @@ add_executable(
     src/message.cpp
     src/datachunk.cpp
     src/utility.cpp
-    src/stb.cpp
 )
 
 target_compile_definitions(steg_test PRIVATE STEG_TEST)
