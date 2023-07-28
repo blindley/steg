@@ -316,6 +316,24 @@ DataChunkArray unhide_formatted_message(DataChunkArray const& cover)
     return formatted_message;
 }
 
+// Alters any existing magic chunks
+//
+// Although the probability of a magic chunk occuring in an image by chance is astronomically low,
+// there is one caveat that makes their occurance much more likely. If a user hides a message in an
+// image, and then tries to hide a message again in the resulting stego image, the stego image
+// (which becomes the cover image in this case) will already contain magic chunks. If the new
+// message is hidden with a higher threshold, or using fewer bitplanes, then it's likely that these
+// original magic chunks will occur before the new magic chunks that we insert. This will cause an
+// issue on extracting, because the extraction algorithm will be reading the wrong magic chunks for
+// determining the rmax, gmax, bmax and amax values. This function eliminates that possibility.
+void alter_magic_chunks(DataChunkArray& chunk_data) {
+    for (auto& chunk : chunk_data) {
+        if (is_magic(chunk, 0) || is_magic(chunk, 1)) {
+            chunk.bytes[0] ^= 0x80; 
+        }
+    }
+}
+
 // Hides a message in an image
 //
 // This is the high level function that ties everything together for the hiding algorithm.
@@ -329,6 +347,7 @@ HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
     auto formatted_data = format_message(message);
     binary_to_gray_code_inplace(img.pixel_data);
     auto chunk_data = chunkify(img);
+    alter_magic_chunks(chunk_data);
     auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
     float threshold = calculate_max_threshold(formatted_data.chunks.size() + 2,
         chunk_data, bitplane_priority);
