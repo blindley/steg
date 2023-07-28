@@ -107,6 +107,54 @@ std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 ama
     return bitplane_priority;
 }
 
+// Common code for chunkify and de_chunkify
+//
+// chunkify and de_chunkify require almost the exact same code structure, with three nested for
+// loops. There is a slight difference in setup, and a slight difference in the innermost portion of
+// the nested loops. In order to keep them in sync and not repeat the same code twice, this template
+// function extracts the common bits, and takes callbacks to handle the differences
+template<typename ImageT, typename Init, typename Transfer>
+void chunkify_common(ImageT& img, Init init_op, Transfer transfer_op) {
+    size_t chunks_in_width = img.width / 8;
+    size_t chunks_in_height = img.height / 8;
+    size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
+
+    auto planed_data_ptr = init_op(chunks_per_bitplane);
+    size_t pd_bit_index = 0;
+
+    auto pixel_data_ptr = img.pixel_data.data();
+
+    std::mt19937_64 gen(img.width * 1000003 + img.height);
+    std::vector<size_t> chunk_priority;
+    chunk_priority.resize(chunks_per_bitplane);
+    for (size_t i = 0; i < chunks_per_bitplane; i++)
+        chunk_priority[i] = i;
+    std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
+
+    for (size_t bp = 0; bp < 32; bp++) {
+        size_t bitplane_index = bp;
+
+        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
+            size_t chunk_index = chunk_priority[_chunk_index];
+            size_t chunk_x_index = chunk_index % chunks_in_width;
+            size_t chunk_y_index = chunk_index / chunks_in_width;
+
+            for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
+                for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
+                    size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
+                    size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
+                    size_t pixel_index = pixel_y * img.width + pixel_x;
+                    size_t byte_index = pixel_index * 4;
+                    size_t bit_index = byte_index * 8 + bitplane_index;
+
+                    transfer_op(pixel_data_ptr, bit_index, planed_data_ptr, pd_bit_index);
+                    ++pd_bit_index;
+                }
+            }
+        }
+    }
+}
+
 // Returns an array of DataChunks from the bitplanes of the image
 //
 // A DataChunk is an 8x8 bit chunk of a single bitplane of the image. The chunks are pulled out from
@@ -120,45 +168,18 @@ std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 ama
 // bytes as an array of bits. This makes the process of copying bits about as simple as it is to
 // copy bytes.
 DataChunkArray chunkify(Image const& img) {
-    size_t chunks_in_width = img.width / 8;
-    size_t chunks_in_height = img.height / 8;
-    size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
-
     DataChunkArray planed_data;
-    planed_data.chunks.resize(chunks_in_width * chunks_in_height * 32);
-    u8* planed_data_ptr = (u8*)planed_data.chunks.data();
-    size_t pd_bit_index = 0;
+    auto init_op = [&](size_t chunks_per_bitplane) -> u8* {
+        planed_data.chunks.resize(chunks_per_bitplane * 32);
+        return (u8*)planed_data.chunks.data();
+    };
 
-    u8 const* pixel_data_ptr = img.pixel_data.data();
+    auto transfer_op = [](u8 const* pixel_data_ptr, size_t bit_index, u8* planed_data_ptr, size_t pd_bit_index) {
+        auto bit_value = get_bit(pixel_data_ptr, bit_index);
+        set_bit(planed_data_ptr, pd_bit_index, bit_value);
+    };
 
-    std::mt19937_64 gen(img.width * 1000003 + img.height);
-    std::vector<size_t> chunk_priority;
-    chunk_priority.resize(chunks_per_bitplane);
-    for (size_t i = 0; i < chunks_per_bitplane; i++)
-        chunk_priority[i] = i;
-    std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
-
-    for (size_t bp = 0; bp < 32; bp++) {
-        size_t bitplane_index = bp;
-
-        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
-            size_t chunk_index = chunk_priority[_chunk_index];
-            size_t chunk_x_index = chunk_index % chunks_in_width;
-            size_t chunk_y_index = chunk_index / chunks_in_width;
-
-            for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
-                for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
-                    size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
-                    size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
-                    size_t pixel_index = pixel_y * img.width + pixel_x;
-                    size_t byte_index = pixel_index * 4;
-                    size_t bit_index = byte_index * 8 + bitplane_index;
-                    auto bit_value = get_bit(pixel_data_ptr, bit_index);
-                    set_bit(planed_data_ptr, pd_bit_index++, bit_value);
-                }
-            }
-        }
-    }
+    chunkify_common(img, init_op, transfer_op);
 
     return planed_data;
 }
@@ -171,45 +192,17 @@ DataChunkArray chunkify(Image const& img) {
 //
 // The structure of the loops is identical to that of chunkify(...), with the only difference being
 // which array we call get_bit(...) and set_bit(...) on.
-void de_chunkify(Image& img, DataChunkArray const& planed_data)
-{
-    size_t chunks_in_width = img.width / 8;
-    size_t chunks_in_height = img.height / 8;
-    size_t chunks_per_bitplane = chunks_in_width * chunks_in_height;
+void de_chunkify(Image& img, DataChunkArray const& planed_data) {
+    auto init_op = [&](size_t chunks_per_bitplane) {
+        return planed_data.bytes_begin();
+    };
 
-    u8 const* planed_data_ptr = (u8 const*)planed_data.chunks.data();
-    size_t pd_bit_index = 0;
+    auto transfer_op = [](u8* pixel_data_ptr, size_t bit_index, u8 const* planed_data_ptr, size_t pd_bit_index) {
+        auto bit_value = get_bit(planed_data_ptr, pd_bit_index);
+        set_bit(pixel_data_ptr, bit_index, bit_value);
+    };
 
-    u8* pixel_data_ptr = img.pixel_data.data();
-
-    std::mt19937_64 gen(img.width * 1000003 + img.height);
-    std::vector<size_t> chunk_priority;
-    chunk_priority.resize(chunks_per_bitplane);
-    for (size_t i = 0; i < chunks_per_bitplane; i++)
-        chunk_priority[i] = i;
-    std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
-
-    for (size_t bp = 0; bp < 32; bp++) {
-        size_t bitplane_index = bp;
-
-        for (size_t _chunk_index = 0; _chunk_index < chunks_per_bitplane; _chunk_index++) {
-            size_t chunk_index = chunk_priority[_chunk_index];
-            size_t chunk_x_index = chunk_index % chunks_in_width;
-            size_t chunk_y_index = chunk_index / chunks_in_width;
-
-            for (size_t row_in_chunk = 0; row_in_chunk < 8; row_in_chunk++) {
-                for (size_t col_in_chunk = 0; col_in_chunk < 8; col_in_chunk++) {
-                    size_t pixel_x = chunk_x_index * 8 + col_in_chunk;
-                    size_t pixel_y = chunk_y_index * 8 + row_in_chunk;
-                    size_t pixel_index = pixel_y * img.width + pixel_x;
-                    size_t byte_index = pixel_index * 4;
-                    size_t bit_index = byte_index * 8 + bitplane_index;
-                    auto bit_value = get_bit(planed_data_ptr, pd_bit_index++);
-                    set_bit(pixel_data_ptr, bit_index, bit_value);
-                }
-            }
-        }
-    }
+    chunkify_common(img, init_op, transfer_op);
 }
 
 // Hides an already formatted message in a DataChunkArray returned by chunkify(...)
