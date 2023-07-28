@@ -138,16 +138,16 @@ void chunkify_common(ImageT& img, InitT init_op, TransferT transfer_op) {
     // Randomize the order by which we iterate through the chunks of each bitplane. Unlike the C
     // rand() function, the random number generators provided by the C++ standard library are
     // guaranteed to be reproducible for any particular seed across all platforms.
-    u64 seed = img.width * 1000003 + image.height;
+    u64 seed = img.width * 1000003 + img.height;
     std::mt19937_64 gen(seed);
     std::vector<size_t> chunk_priority;
     chunk_priority.resize(chunks_per_bitplane);
     for (size_t i = 0; i < chunks_per_bitplane; i++)
         chunk_priority[i] = i;
-    std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
     for (size_t bp = 0; bp < 32; bp++) {
         size_t bitplane_index = bp;
+        std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
         for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
             size_t chunk_index = chunk_priority[ci];
