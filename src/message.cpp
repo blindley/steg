@@ -1,3 +1,10 @@
+// Benjamin Lindley, Vanessa Martinez
+//
+// message.cpp
+//
+// Messages can't just be copied directly. They need to be formatted with some meta data in order to
+// be able to be properly extracted. The code in this file is responsible for that formattting.
+
 #include <stdexcept>
 
 #include "declarations.h"
@@ -57,6 +64,11 @@ void conjugate_group(DataChunk* chunk_ptr) {
 }
 
 // Deconjugate a group of 8 chunks
+//
+// Look at the first byte of the first chunk. That is the conjugation map. Each bit in the
+// conjugation map indicates whether a chunk was conjugated and needs to be de-conjugated.
+// - 0 = not conjugated
+// - 1 = conjugated
 void de_conjugate_group(DataChunk* chunk_ptr) {
     if ((chunk_ptr[0].bytes[0] & 0x80) == 0x80) {
         chunk_ptr[0].conjugate();
