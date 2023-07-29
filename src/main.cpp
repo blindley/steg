@@ -1,3 +1,8 @@
+// Benjamin Lindley, Vanessa Martinez
+//
+// main.cpp
+
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -11,6 +16,7 @@
 void main_impl(int argc, char** argv);
 void show_stats(HideStats const& stats, bool measure_mode);
 
+// Centralized location to catch all exceptions and print them
 int main(int argc, char** argv) {
     std::string error;
     try {
@@ -58,7 +64,8 @@ void main_impl(int argc, char** argv) {
             }
         }
 
-        auto stats = bpcs_hide_message(-1.0f, cover_file, message,
+        // we pass -1 for the threshold, which is a signal for it to be determined dynamically
+        auto stats = bpcs_hide(-1.0f, cover_file, message,
             args.rmax, args.gmax, args.bmax, args.amax);
 
         cover_file.save(args.output_file);
@@ -66,7 +73,7 @@ void main_impl(int argc, char** argv) {
         show_stats(stats, false);
     } else if (args.extract) {
         auto steg_file = Image::load(args.stego_file);
-        auto extracted_message = bpcs_unhide_message(steg_file);
+        auto extracted_message = bpcs_extract(steg_file);
 
         if (args.output_file == "-") {
             // write message to standard output, instead of a file
@@ -80,7 +87,7 @@ void main_impl(int argc, char** argv) {
         }
     } else if (args.measure) {
         auto cover_file = Image::load(args.cover_file);
-        auto stats = measure_capacity(args.threshold, cover_file,
+        auto stats = bpcs_measure(args.threshold, cover_file,
             args.rmax, args.gmax, args.bmax, args.amax);
 
         show_stats(stats, true);
@@ -90,6 +97,8 @@ void main_impl(int argc, char** argv) {
     }
 }
 
+// Show stats about how much data was hidden (in hide mode), or how much data is able to be hidden
+// (in measure mode)
 void show_stats(HideStats const& stats, bool measure_mode) {
     if (measure_mode) {
         std::cout << "total capacity: " << stats.message_bytes_hidden << '\n';

@@ -1,3 +1,7 @@
+// Benjamin Lindley, Vanessa Martinez
+//
+// declarations.h
+
 #ifndef DECLARATIONS_202307272153
 #define DECLARATIONS_202307272153
 
@@ -10,6 +14,10 @@ using u8 = std::uint8_t;
 using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
+
+// This is per color channel, with possible values in [0, 8]. We default to 6 because altering
+// bitplanes 7 and 8 often has very noticable distortion, from experiment.
+#define DEFAULT_BITPLANE_USAGE 6
 
 ////////////////////////////////////////////////////////////////////////////////
 // args.cpp
@@ -143,10 +151,10 @@ struct HideStats {
     size_t message_bytes_hidden;
 };
 
-HideStats bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message,
+HideStats bpcs_hide(float threshold, Image& img, std::vector<u8> const& message,
     u8 rmax, u8 gmax, u8 bmax, u8 amax);
-std::vector<u8> bpcs_unhide_message(Image& img);
-HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax);
+std::vector<u8> bpcs_extract(Image& img);
+HideStats bpcs_measure(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax);
 
 
 #endif // DECLARATIONS_202307272153

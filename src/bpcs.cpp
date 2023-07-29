@@ -1,3 +1,9 @@
+// Benjamin Lindley, Vanessa Martinez
+//
+// bpcs.cpp
+//
+// This is the meat and potatoes of the BPCS algorithm. Gray code conversion, extracting bitplanes,
+// hiding and extracting occur in this file.
 
 #include <array>
 #include <vector>
@@ -366,7 +372,7 @@ void alter_magic_chunks(DataChunkArray& chunk_data) {
 // Hides a message in an image
 //
 // This is the high level function that ties everything together for the hiding algorithm.
-HideStats bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message,
+HideStats bpcs_hide(float threshold, Image& img, std::vector<u8> const& message,
     u8 rmax, u8 gmax, u8 bmax, u8 amax)
 {
     HideStats stats = {};
@@ -374,19 +380,22 @@ HideStats bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& 
     stats.chunks_per_bitplane = (img.width / 8) * (img.height / 8);
 
     auto formatted_data = format_message(message, rmax, gmax, bmax, amax);
+
     binary_to_gray_code_inplace(img.pixel_data);
     auto chunk_data = chunkify(img);
     alter_magic_chunks(chunk_data);
-    auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
 
+    // The calling function can pass a negative value in order to have the threshold determined
+    // dynamically.
     if (threshold < 0.0f) {
+        auto bitplane_priority = generate_bitplane_priority(rmax, gmax, bmax, amax);
         threshold = calculate_max_threshold(formatted_data.chunks.size(), chunk_data,
             bitplane_priority);
     }
+
     stats.threshold = threshold;
     hide_formatted_message(stats, threshold, chunk_data, formatted_data,
         rmax, gmax, bmax, amax);
-
     stats.message_bytes_hidden = std::min(stats.message_bytes_hidden, message.size());
 
     de_chunkify(img, chunk_data);
@@ -398,7 +407,7 @@ HideStats bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& 
 // Extracts a message hidden in an image
 //
 // The high level function that ties everything together for the extracting algorithm.
-std::vector<u8> bpcs_unhide_message(Image& img) {
+std::vector<u8> bpcs_extract(Image& img) {
     binary_to_gray_code_inplace(img.pixel_data);
     auto chunk_data = chunkify(img);
     auto formatted_data = unhide_formatted_message(chunk_data);
@@ -412,9 +421,9 @@ std::vector<u8> bpcs_unhide_message(Image& img) {
 // Simply makes a message that definitely won't fit, and tries to hide it. The hide function will
 // report how many bytes were actually hidden. Probably not the most efficient way to do this,
 // but it works, and re-uses the code I already have.
-HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax) {
+HideStats bpcs_measure(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax) {
     std::vector<u8> message(img.pixel_data.size());
-    return bpcs_hide_message(threshold, img, message, rmax, gmax, bmax, amax);
+    return bpcs_hide(threshold, img, message, rmax, gmax, bmax, amax);
 }
 
 #ifdef STEG_TEST
@@ -485,15 +494,15 @@ TEST(bpcs, message_hiding) {
     auto img = generate_random_image(257, 135);
     auto img_original = img;
 
-    bpcs_hide_message(-1.0f, img, message, 8, 8, 8, 8);
-    auto extracted_message = bpcs_unhide_message(img);
+    bpcs_hide(-1.0f, img, message, 8, 8, 8, 8);
+    auto extracted_message = bpcs_extract(img);
 
     ASSERT_EQ(message, extracted_message);
 
     img = img_original;
 
-    bpcs_hide_message(-1.0f, img, message, 7, 6, 5, 4);
-    auto extracted_message2 = bpcs_unhide_message(img);
+    bpcs_hide(-1.0f, img, message, 7, 6, 5, 4);
+    auto extracted_message2 = bpcs_extract(img);
 
     ASSERT_EQ(message, extracted_message2);
 }
