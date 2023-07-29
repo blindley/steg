@@ -88,35 +88,53 @@ void de_conjugate_group(DataChunk* chunk_ptr) {
 // first byte of every 8th chunk. For simplicity, the formatted message is extended to a multiple of
 // 8 chunks. It's possible that this could cause a message that would otherwise be able to fit, to
 // not fit, if its size is very close to the capacity of the cover image (within 63 bytes).
-DataChunkArray format_message(std::vector<u8> const& message) {
-    size_t formatted_size = message.size() + sizeof(SIGNATURE) + sizeof(u32);
-    formatted_size = (formatted_size + 62) / 63 * 64;
-    DataChunkArray formatted_data;
-    formatted_data.chunks.resize(formatted_size / 8);
+DataChunkArray format_message(std::vector<u8> const& message, u8 rmax, u8 gmax, u8 bmax, u8 amax) {
+    // The message is prefixed with 3 chunks. The first chunk contains starts with the conjugation
+    // map for the first group of 8 chunks. The last 4 bytes tell us the size of the message. The 3
+    // bytes in between are another randomly generated magic number. This number is checked on
+    // extraction for validation purposes. However, this is redundant due to the magic chunks that
+    // follow. The primary purpose of the 3 magic bytes is to just fill up the first chunk to 8
+    // bytes. The conjugation map is not counted as part of the size. The second and third chunks
+    // are the magic chunks, explained elsewhere. So the 23 here is the 4 bytes for storing the
+    // size, 3 magic bytes, and 16 bytes for the magic chunks.
+    size_t formatted_size = 23 + message.size();
 
-    size_t out_index = 1;
-    size_t in_index = 0;
+    // This is how many groups of 8 chunks in the formatted message. A group consists of 63 bytes of
+    // the message (or meta data), plus 1 byte for the conjugation map. So this formula just rounds
+    // the size up to the nearest multiple of 63, and divides by 63 to get the number of groups.
+    size_t formatted_chunk_group_count = (formatted_size + 62) / 63;
+    size_t formatted_chunk_count = formatted_chunk_group_count * 8;
+    DataChunkArray formatted_data;
+    formatted_data.chunks.resize(formatted_chunk_count);
 
     u32 message_size = message.size();
     u8* out_ptr = formatted_data.bytes_begin();
 
-    std::memcpy(out_ptr + out_index, SIGNATURE, sizeof(SIGNATURE));
-    out_index += sizeof(SIGNATURE);
-    u32_to_bytes_be(message_size, out_ptr + out_index);
-    out_index += sizeof(u32);
+    std::memcpy(out_ptr + 1, SIGNATURE, 3);
+    u32_to_bytes_be(message_size, out_ptr + 4);
 
-    size_t n = std::min(64 - out_index, message.size());
-    std::memcpy(out_ptr + out_index, message.data(), n);
-    out_index += n;
-    in_index += n;
+    auto magic_chunks = generate_magic_chunks(rmax, gmax, bmax, amax);
+    formatted_data.chunks[1] = magic_chunks[0];
+    formatted_data.chunks[2] = magic_chunks[1];
+
+    // start outputting the actual message at the 3rd chunk (24th byte)
+    size_t out_index = 3 * 8;
+    size_t in_index = 0;
 
     while (in_index < message.size()) {
-        out_index++;
-        size_t remaining = message.size() - in_index;
-        size_t n = std::min((size_t)63, remaining);
-        std::memcpy(out_ptr + out_index, message.data() + in_index, n);
-        out_index += n;
-        in_index += n;
+        // skip over the conjugation byte
+        if (out_index % 64 == 0) {
+            out_index++;
+        }
+
+        out_ptr[out_index] = message[in_index];
+        ++out_index;
+        ++in_index;
+    }
+
+    if (formatted_data.chunks.size() % 8) {
+        auto err = "chunks not multiple of 8, fix this";
+        throw std::logic_error(err);
     }
 
     for (size_t i = 0; i < formatted_data.chunks.size(); i += 8) {
@@ -126,52 +144,43 @@ DataChunkArray format_message(std::vector<u8> const& message) {
     return formatted_data;
 }
 
+size_t parse_size_chunk(DataChunk size_chunk) {
+    if ((size_chunk.bytes[0] & 0x80) == 0x80)
+        size_chunk.conjugate();
+    if (std::memcmp(size_chunk.bytes + 1, SIGNATURE, 3) != 0)
+        throw std::runtime_error("invalid signature");
+    return (size_t)u32_from_bytes_be(size_chunk.bytes + 4);
+}
+
 // Undoes what format_message(...) did.
 //
 // Unconjugates conjugated chunks, extracts size, checks signature, and returns message in its
 // original form.
 std::vector<u8> unformat_message(DataChunkArray formatted_data) {
-    u8* byte_ptr = formatted_data.bytes_begin();
-    DataChunk* chunk_ptr = formatted_data.begin();
-    de_conjugate_group(chunk_ptr);
-    chunk_ptr += 8;
-
-    size_t in_index = 1;
-    if (std::memcmp(byte_ptr + in_index, SIGNATURE, sizeof(SIGNATURE)) != 0) {
-        throw std::runtime_error("invalid signature");
-    }
-    in_index += sizeof(SIGNATURE);
-
-    auto message_size = u32_from_bytes_be(byte_ptr + in_index);
-    in_index += sizeof(u32);
-
-    size_t formatted_size = message_size + sizeof(SIGNATURE) + sizeof(u32);
-    formatted_size = (formatted_size + 62) / 63 * 64;
-    formatted_size = std::min(formatted_size, formatted_data.chunks.size() * 8);
-
-    // If stored message exceeded capacity, and only a partial message was stored,
-    // message_size will still be the original file message size, so truncate it
-    // to the actual capacity
-    size_t max_possible_size = formatted_size / 64 * 63 - sizeof(SIGNATURE) - sizeof(u32);
-    size_t actual_message_size = std::min((size_t)message_size, max_possible_size);
-
-    auto chunk_count = formatted_size / 8;
-    auto group_count = chunk_count / 8;
-
-    for (size_t i = 1; i < group_count; i++) {
-        de_conjugate_group(chunk_ptr);
-        chunk_ptr += 8;
-    }
-
     std::vector<u8> message;
-    message.reserve(actual_message_size);
-    
-    for (size_t i = 0; i < actual_message_size; i++) {
-        if (in_index % 64 == 0) {
-            in_index++;
-        }
+    if (formatted_data.chunks.size() < 8) {
+        return message;
+    }
 
-        message.push_back(byte_ptr[in_index++]);
+    size_t parsed_message_size = parse_size_chunk(formatted_data.chunks[0]);
+    size_t num_chunk_groups = formatted_data.chunks.size() / 8;
+    size_t formatted_message_size = num_chunk_groups * 63;
+    size_t max_possible_message_size = formatted_message_size - 23;
+    size_t actual_message_size = std::min(parsed_message_size, max_possible_message_size);
+
+    for (size_t i = 0; i < num_chunk_groups; i++) {
+        auto chunk_ptr = formatted_data.chunks.data() + i * 8;
+        de_conjugate_group(chunk_ptr);
+    }
+
+    size_t formatted_data_index = 24;
+    auto formatted_data_byte_ptr = formatted_data.bytes_begin();
+    message.reserve(actual_message_size);
+    for (size_t i = 0; i < actual_message_size; i++) {
+        if (formatted_data_index % 64 == 0)
+            ++formatted_data_index;
+        message.push_back(formatted_data_byte_ptr[formatted_data_index]);
+        ++formatted_data_index;
     }
 
     return message;
@@ -188,7 +197,7 @@ TEST(message, message_formatting) {
         message.push_back(std::rand() >> 7);
     }
 
-    auto formatted_message = format_message(message);
+    auto formatted_message = format_message(message, 8, 8, 8, 8);
     auto recovered_message = unformat_message(formatted_message);
     ASSERT_EQ(message, recovered_message);
 }

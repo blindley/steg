@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <array>
 
 using u8 = std::uint8_t;
 using u16 = std::uint16_t;
@@ -123,11 +124,12 @@ struct Image {
 extern u8 const SIGNATURE[3];
 extern u8 const MAGIC_14[14];
 
-DataChunkArray format_message(std::vector<u8> const& message);
+DataChunkArray format_message(std::vector<u8> const& message, u8 rmax, u8 gmax, u8 bmax, u8 amax);
 std::vector<u8> unformat_message(DataChunkArray formatted_data);
 
 size_t calculate_formatted_message_size(size_t message_size);
 size_t calculate_message_capacity_from_chunk_count(size_t chunk_count);
+std::array<DataChunk, 2> generate_magic_chunks(u8 rmax, u8 gmax, u8 bmax, u8 amax);
 
 ////////////////////////////////////////////////////////////////////////////////
 // bpcs.cpp
@@ -141,7 +143,7 @@ struct HideStats {
     size_t message_bytes_hidden;
 };
 
-HideStats bpcs_hide_message(Image& img, std::vector<u8> const& message,
+HideStats bpcs_hide_message(float threshold, Image& img, std::vector<u8> const& message,
     u8 rmax, u8 gmax, u8 bmax, u8 amax);
 std::vector<u8> bpcs_unhide_message(Image& img);
 HideStats measure_capacity(float threshold, Image& img, u8 rmax, u8 gmax, u8 bmax, u8 amax);

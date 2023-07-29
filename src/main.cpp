@@ -58,7 +58,7 @@ void main_impl(int argc, char** argv) {
             }
         }
 
-        auto stats = bpcs_hide_message(cover_file, message,
+        auto stats = bpcs_hide_message(-1.0f, cover_file, message,
             args.rmax, args.gmax, args.bmax, args.amax);
 
         cover_file.save(args.output_file);
