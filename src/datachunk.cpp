@@ -217,7 +217,6 @@ TEST(datachunk, measure_complexity) {
 TEST(datachunk, CDF) {
     DataChunkArray chunks;
     chunks.chunks.resize(17*32);
-    size_t i = 0;
     chunks.chunks[0] = {};
     chunks.chunks[1] = { 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, };
     chunks.chunks[2] = { 0x00, 0x07, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, };

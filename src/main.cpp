@@ -110,7 +110,6 @@ void show_stats(HideStats const& stats, bool measure_mode) {
     std::cout << "chunks used per bitplane (MSB->LSB):\n";
     std::cout << "              red            green             blue            alpha\n";
     for (size_t i = 0; i < 8; i++) {
-        auto a = stats.chunks_used_per_bitplane[24 + i];
         for (size_t channel_index = 0; channel_index < 4; channel_index++) {
             auto component_value = stats.chunks_used_per_bitplane[channel_index * 8 + i];
             float percent = 0.0f;

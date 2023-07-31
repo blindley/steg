@@ -118,7 +118,7 @@ std::vector<u8> random_bytes(size_t size) {
     std::mt19937_64 gen;
     std::vector<u8> v(size);
     for (auto& e : v) {
-        e = gen();
+        e = (u8)gen();
     }
     return v;
 }

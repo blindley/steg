@@ -20,10 +20,10 @@ u32 u32_from_bytes_be(u8 const* bytes) {
 
 // Writes a u32 in big-endian format
 void u32_to_bytes_be(u32 value, u8* bytes_out) {
-    bytes_out[0] = (value >> 24);
-    bytes_out[1] = (value >> 16);
-    bytes_out[2] = (value >> 8);
-    bytes_out[3] = value;
+    bytes_out[0] = (u8)(value >> 24);
+    bytes_out[1] = (u8)(value >> 16);
+    bytes_out[2] = (u8)(value >> 8);
+    bytes_out[3] = (u8)value;
 }
 
 // Given actual message size, calculates size after formatting for hiding
@@ -119,7 +119,7 @@ DataChunkArray format_message(std::vector<u8> const& message, u8 rmax, u8 gmax, 
     DataChunkArray formatted_data;
     formatted_data.chunks.resize(formatted_chunk_count);
 
-    u32 message_size = message.size();
+    u32 message_size = (u32)message.size();
     u8* out_ptr = formatted_data.bytes_begin();
 
     std::memcpy(out_ptr + 1, SIGNATURE, 3);
@@ -206,7 +206,7 @@ TEST(message, message_formatting) {
     std::vector<u8> message;
 
     for (size_t i = 0; i < 4099; i++) {
-        message.push_back(std::rand() >> 7);
+        message.push_back((u8)(std::rand() >> 7));
     }
 
     auto formatted_message = format_message(message, 8, 8, 8, 8);

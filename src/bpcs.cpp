@@ -226,7 +226,7 @@ DataChunkArray chunkify(Image const& img) {
 // The structure of the loops is identical to that of chunkify(...), with the only difference being
 // which array we call get_bit(...) and set_bit(...) on.
 void de_chunkify(Image& img, DataChunkArray const& chunk_data) {
-    auto init_op = [&](size_t chunks_per_bitplane) {
+    auto init_op = [&](size_t) {
         // nothing to allocate in this case, just return a pointer to the chunk data
         return chunk_data.bytes_begin();
     };
@@ -436,8 +436,8 @@ size_t num_bits_diff(u8 a, u8 b) {
 
 TEST(bpcs, gray_code_conversions) {
     for (int i = 0; i <= 256; i++) {
-        u8 a = i;
-        u8 b = i + 1;
+        u8 a = (u8)i;
+        u8 b = (u8)(i + 1);
         u8 ga = binary_to_gray_code(a);
         u8 gb = binary_to_gray_code(b);
         size_t diff = num_bits_diff(ga, gb);
@@ -445,7 +445,7 @@ TEST(bpcs, gray_code_conversions) {
     }
 
     for (int i = 0; i < 256; i++) {
-        u8 a = i;
+        u8 a = (u8)i;
         u8 ga = binary_to_gray_code(a);
         u8 ba = gray_code_to_binary(ga);
         ASSERT_EQ(a, ba);
@@ -470,7 +470,7 @@ Image generate_random_image(size_t width, size_t height) {
                             + x_off * 4;
                         for (size_t i = 0; i < 4; i++) {
                             size_t offset = pixel_data_offset + i;
-                            img.pixel_data[offset] = gen();
+                            img.pixel_data[offset] = (u8)gen();
                         }
                     }
                 }
@@ -488,7 +488,7 @@ TEST(bpcs, message_hiding) {
 
     std::vector<u8> message;
     for (size_t i = 0; i < 511; i++) {
-        message.push_back(gen());
+        message.push_back((u8)gen());
     }
 
     auto img = generate_random_image(257, 135);

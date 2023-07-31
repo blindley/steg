@@ -23,6 +23,16 @@
 #include <cassert>
 #include <sstream>
 
+// The STB libraries produce several warnings. Temporarily disable them.
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4996)
+#pragma warning(disable:4244)
+#elif defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#endif
+
 #define STBI_FAILURE_USERMSG
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -30,18 +40,26 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#elif defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
 #include "declarations.h"
 
 void Image::save(std::string const& filename) {
     auto ext = get_file_extension(filename);
 
     int success;
+    int w = (int)this->width;
+    int h = (int)this->height;
     if (ext == "bmp") 
-        success = stbi_write_bmp(filename.c_str(), this->width, this->height, 4, this->pixel_data.data());
+        success = stbi_write_bmp(filename.c_str(), w, h, 4, this->pixel_data.data());
     else if (ext == "png")
-        success = stbi_write_png(filename.c_str(), this->width, this->height, 4, this->pixel_data.data(), 0);
+        success = stbi_write_png(filename.c_str(), w, h, 4, this->pixel_data.data(), 0);
     else if (ext == "tga")
-        success = stbi_write_tga(filename.c_str(), this->width, this->height, 4, this->pixel_data.data());
+        success = stbi_write_tga(filename.c_str(), w, h, 4, this->pixel_data.data());
     else {
         std::ostringstream oss;
         oss << "unsupported file extension ." << ext;

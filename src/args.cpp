@@ -45,8 +45,6 @@ std::string get_exe_short_name(char const* argv0) {
 void print_usage(char const* exe_name) {
     auto exe_short_name = get_exe_short_name(exe_name);
 
-    char const* bitplane_args = "[--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]";
-
     std::cout << "Usage:\n";
     std::cout << "    " << exe_short_name
         << " --hide -m <message file> -c <coverfile> -o <stego file> [-t <threshold>]\n"
@@ -367,10 +365,10 @@ Args parse_args(int argc, char** argv) {
 
         args.threshold = raw_args.get_float_or_default_with_range("-t", -1.0f, 0.0f, 0.5f);
 
-        args.rmax = raw_args.get_integer_or_default_with_range("--rmax", DEFAULT_BITPLANE_USAGE, 0, 8);
-        args.gmax = raw_args.get_integer_or_default_with_range("--gmax", DEFAULT_BITPLANE_USAGE, 0, 8);
-        args.bmax = raw_args.get_integer_or_default_with_range("--bmax", DEFAULT_BITPLANE_USAGE, 0, 8);
-        args.amax = raw_args.get_integer_or_default_with_range("--amax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.rmax = (u8)raw_args.get_integer_or_default_with_range("--rmax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.gmax = (u8)raw_args.get_integer_or_default_with_range("--gmax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.bmax = (u8)raw_args.get_integer_or_default_with_range("--bmax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.amax = (u8)raw_args.get_integer_or_default_with_range("--amax", DEFAULT_BITPLANE_USAGE, 0, 8);
 
         auto ext = get_file_extension(args.output_file);
         if (ext != "bmp" && ext != "png" && ext != "tga") {
@@ -385,10 +383,10 @@ Args parse_args(int argc, char** argv) {
     } else if (args.measure) {
         args.cover_file = raw_args.get_value_or_throw("-c");
         args.threshold = raw_args.get_float_or_default_with_range("-t", 0.3f, 0.0f, 0.5f);
-        args.rmax = raw_args.get_integer_or_default_with_range("--rmax", DEFAULT_BITPLANE_USAGE, 0, 8);
-        args.gmax = raw_args.get_integer_or_default_with_range("--gmax", DEFAULT_BITPLANE_USAGE, 0, 8);
-        args.bmax = raw_args.get_integer_or_default_with_range("--bmax", DEFAULT_BITPLANE_USAGE, 0, 8);
-        args.amax = raw_args.get_integer_or_default_with_range("--amax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.rmax = (u8)raw_args.get_integer_or_default_with_range("--rmax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.gmax = (u8)raw_args.get_integer_or_default_with_range("--gmax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.bmax = (u8)raw_args.get_integer_or_default_with_range("--bmax", DEFAULT_BITPLANE_USAGE, 0, 8);
+        args.amax = (u8)raw_args.get_integer_or_default_with_range("--amax", DEFAULT_BITPLANE_USAGE, 0, 8);
     }
 
     return args;
