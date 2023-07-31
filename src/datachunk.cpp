@@ -1,6 +1,12 @@
 // Benjamin Lindley, Vanessa Martinez
 //
 // datachunk.cpp
+//
+// A DataChunk is just an 8 byte array with some convenient functions. This is the fundamental unit
+// of data hiding in BPCS. The DataChunk is used in two separate places. In bpcs.cpp, the cover
+// image is broken into 8x8 bitplane chunks. These bits are extracted into a DataChunk. Also, in
+// message.cpp, the message is formatted into DataChunks. Then, formatted message datachunks can
+// just be copied over cover image datachunks, instead of working at the byte level.
 
 #include <algorithm>
 #include <bit>
