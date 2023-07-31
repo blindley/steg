@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <algorithm>
 #include <string>
-#include <span>
 #include <cassert>
 #include <bit>
 #include <random>
@@ -67,7 +66,7 @@ std::array<DataChunk, 2> generate_magic_chunks(u8 rmax, u8 gmax, u8 bmax, u8 ama
 
 // Check if this data chunk is one of the magic chunks
 bool is_magic(DataChunk const& chunk, size_t magic_chunk_index) {
-    if (magic_chunk_index < 0 || magic_chunk_index > 1) {
+    if (magic_chunk_index > 1) {
         // note that any time we throw a logic_error, that means there is a bug in the code that
         // needs to be fixed, whereas a runtime_error occurs when the program runs into an error
         // based on input, such as incorrect parameters on the command line, or failure in reading a

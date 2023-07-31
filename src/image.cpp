@@ -31,6 +31,8 @@
 #pragma warning(disable:4244)
 #elif defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
 
 #define STBI_FAILURE_USERMSG

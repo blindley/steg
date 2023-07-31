@@ -6,6 +6,7 @@
 #define DECLARATIONS_202307272153
 
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <array>

@@ -3,6 +3,7 @@
 // datachunk.cpp
 
 #include <algorithm>
+#include <bit>
 #include <map>
 #include <vector>
 #include <stdexcept>
