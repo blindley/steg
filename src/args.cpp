@@ -49,16 +49,16 @@ void print_usage(char const* exe_name) {
 
     std::cout << "Usage:\n";
     std::cout << "    " << exe_short_name
-        << " --hide -m <message file> -c <coverfile> -o <stego file> "
-        << bitplane_args << "\n";
+        << " --hide -m <message file> -c <coverfile> -o <stego file> [-t <threshold>]\n"
+        << "        [--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
     std::cout << "    " << exe_short_name
-        << " --hide --random <count> -c <coverfile> -o <stego file> "
-        << bitplane_args << "\n";
+        << " --hide --random <count> -c <coverfile> -o <stego file> [-t <threshold>]\n"
+        << "        [--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
     std::cout << "    " << exe_short_name
         << " --extract -s <stego file> -o <message file>\n";
     std::cout << "    " << exe_short_name
-        << " --measure -c <cover file> -t <threshold> "
-        << bitplane_args << "\n";
+        << " --measure -c <cover file> -t <threshold>\n"
+        << "        [--rmax <n>] [--gmax <n>] [--bmax <n>] [--amax <n>]\n";
     std::cout << "    " << exe_short_name << " --help\n";
 
     std::cout << "\n(try --help for more details)\n";
@@ -78,13 +78,14 @@ void print_help(char const* argv0) {
         "",
         "Hide Mode Options:",
         "  -c <coverfile>      Cover image to hide message in",
-        "  -m <message file>   Message file to hide",
-        "  --random <count>    Fill cover file with <count> random bytes",
+        "  -m <message file>   Message file to hide. Exclusive with --random.",
+        "  --random <count>    Fill cover file with <count> random bytes. Exclusive with -m.",
         "  -o <stego file>     Name of output stego image file",
-        "  --rmax <n>          Max red bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
-        "  --gmax <n>          Max green bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
-        "  --bmax <n>          Max blue bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
-        "  --amax <n>          Max alpha bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
+        "  -t <threshold>      Complexity threshold [0, 0.5]. default=dynamic threshold",
+        "  --rmax <n>          Max red bitplanes to use ([0,8], default={BP})",
+        "  --gmax <n>          Max green bitplanes to use ([0,8], default={BP})",
+        "  --bmax <n>          Max blue bitplanes to use ([0,8], default={BP})",
+        "  --amax <n>          Max alpha bitplanes to use ([0,8], default={BP})",
         "",
         "Extract Mode Options:",
         "  -s <stego file>     Stego file to extract hidden message from",
@@ -93,10 +94,10 @@ void print_help(char const* argv0) {
         "Measure Mode Options:",
         "  -c <cover file>     Cover image to measure for capacity",
         "  -t <threshold>      Complexity threshold to measure for [0,0.5]",
-        "  --rmax <n>          Max red bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
-        "  --gmax <n>          Max green bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
-        "  --bmax <n>          Max blue bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
-        "  --amax <n>          Max alpha bitplanes to use ([0,8], default={DEFAULT_BITPLANE_USAGE})",
+        "  --rmax <n>          Max red bitplanes to use ([0,8], default={BP})",
+        "  --gmax <n>          Max green bitplanes to use ([0,8], default={BP})",
+        "  --bmax <n>          Max blue bitplanes to use ([0,8], default={BP})",
+        "  --amax <n>          Max alpha bitplanes to use ([0,8], default={BP})",
         "",
         "Examples:",
         "  {steg.exe} --hide -c cover.jpg -m message.txt --amax 0 -o hidden.png",
@@ -132,7 +133,7 @@ void print_help(char const* argv0) {
         // The executable might be named something besides steg.exe, so we replace it in the help
         // examples with the actual executable name.
         replace_substring(formatted, "{steg.exe}", exe_short_name);
-        replace_substring(formatted, "{DEFAULT_BITPLANE_USAGE}", DEFAULT_BITPLANE_USAGE);
+        replace_substring(formatted, "{BP}", DEFAULT_BITPLANE_USAGE);
         std::cout << formatted << '\n';
     }
 }
@@ -312,10 +313,10 @@ Args parse_args(int argc, char** argv) {
         // --random is exlusive with -m. If one is present, the other is not allowed.
         if (message_is_random) {
             required_args = {"--hide", "--random", "-c", "-o"};
-            allowed_args = {"--rmax", "--gmax", "--bmax", "--amax"};
+            allowed_args = {"-t", "--rmax", "--gmax", "--bmax", "--amax"};
         } else {
             required_args = {"--hide", "-m", "-c", "-o"};
-            allowed_args = {"--rmax", "--gmax", "--bmax", "--amax"};
+            allowed_args = {"-t", "--rmax", "--gmax", "--bmax", "--amax"};
         }
     } else if (args.extract) {
         required_args = {"--extract", "-s", "-o"};
@@ -363,6 +364,8 @@ Args parse_args(int argc, char** argv) {
         }
         args.cover_file = raw_args.get_value_or_throw("-c");
         args.output_file = raw_args.get_value_or_throw("-o");
+
+        args.threshold = raw_args.get_float_or_default_with_range("-t", -1.0f, 0.0f, 0.5f);
 
         args.rmax = raw_args.get_integer_or_default_with_range("--rmax", DEFAULT_BITPLANE_USAGE, 0, 8);
         args.gmax = raw_args.get_integer_or_default_with_range("--gmax", DEFAULT_BITPLANE_USAGE, 0, 8);

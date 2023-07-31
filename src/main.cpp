@@ -64,8 +64,7 @@ void main_impl(int argc, char** argv) {
             }
         }
 
-        // we pass -1 for the threshold, which is a signal for it to be determined dynamically
-        auto stats = bpcs_hide(-1.0f, cover_file, message,
+        auto stats = bpcs_hide(args.threshold, cover_file, message,
             args.rmax, args.gmax, args.bmax, args.amax);
 
         cover_file.save(args.output_file);
