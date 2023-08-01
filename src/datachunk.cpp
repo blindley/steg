@@ -17,13 +17,13 @@
 #include "declarations.h"
 
 // Counts all the bit transitions, from 1 to 0, or from 0 to 1, in a byte
-static size_t count_bit_transitions(u8 byte) {
+size_t count_bit_transitions(u8 byte) {
     u8 x = (byte ^ (byte << 1)) & 0b11111110;
     return std::popcount(x);
 }
 
 // Counts the bit differences at each corresponding position of 2 bytes
-static size_t count_bit_differences(u8 a, u8 b) {
+size_t count_bit_differences(u8 a, u8 b) {
     u8 diff = a ^ b;
     return std::popcount(diff);
 }

@@ -26,21 +26,6 @@ void u32_to_bytes_be(u32 value, u8* bytes_out) {
     bytes_out[3] = (u8)value;
 }
 
-// Given actual message size, calculates size after formatting for hiding
-size_t calculate_formatted_message_size(size_t message_size) {
-    size_t formatted_size = message_size + sizeof(SIGNATURE) + sizeof(u32);
-    formatted_size = (formatted_size + 62) / 63 * 64;
-    return formatted_size;
-}
-
-// Given a chunk count indicating number of complex chunks, calculates how
-// large of a message can be stored after formatting
-size_t calculate_message_capacity_from_chunk_count(size_t chunk_count) {
-    size_t usable_chunks = (chunk_count - 2) / 8 * 8;
-    size_t usable_bytes = usable_chunks / 8 * 63 - sizeof(SIGNATURE) - sizeof(u32);
-    return usable_bytes;
-}
-
 // Conjugates a group of 8 chunks
 //
 // We do this in groups of 8 because the conjugation map is stored in the first byte of the first
