@@ -45,6 +45,7 @@ std::string get_exe_short_name(char const* argv0) {
 void print_usage(char const* exe_name) {
     auto exe_short_name = get_exe_short_name(exe_name);
 
+    std::cout << "version: 08/09/2023\n";
     std::cout << "Usage:\n";
     std::cout << "    " << exe_short_name
         << " --hide -m <message file> -c <coverfile> -o <stego file> [-t <threshold>]\n"
