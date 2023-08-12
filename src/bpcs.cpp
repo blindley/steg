@@ -122,6 +122,22 @@ std::vector<size_t> generate_bitplane_priority(u8 rmax, u8 gmax, u8 bmax, u8 ama
     return bitplane_priority;
 }
 
+// Turns out that while C++ random generators are consistent, the shuffle algorithm is not. So I had
+// to write my own.
+template<typename It, typename Gen>
+void fisher_yates_shuffle(It begin, It end, Gen gen) {
+    auto n = std::distance(begin, end);
+    auto last = std::prev(end);
+    while (n > 1) {
+        auto swap_index = gen() % n;
+        if (swap_index != 0) {
+            std::iter_swap(begin, last);
+        }
+        ++begin;
+        --n;
+    }
+}
+
 // Common code for chunkify and de_chunkify
 //
 // chunkify and de_chunkify require almost the exact same code structure, with four nested for
@@ -157,7 +173,7 @@ void chunkify_common(ImageT& img, InitT init_op, TransferT transfer_op) {
         // We shuffle the chunk priority for every bitplane, so the order is different for each one.
         // This probably doesn't do anything to help with detectability, but perhaps it makes
         // extraction harder.
-        std::shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
+        fisher_yates_shuffle(chunk_priority.begin(), chunk_priority.end(), gen);
 
         for (size_t ci = 0; ci < chunks_per_bitplane; ci++) {
             size_t chunk_index = chunk_priority[ci];
