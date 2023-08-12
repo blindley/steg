@@ -131,7 +131,7 @@ void fisher_yates_shuffle(It begin, It end, Gen gen) {
     while (n > 1) {
         auto swap_index = gen() % n;
         if (swap_index != 0) {
-            std::iter_swap(begin, last);
+            std::iter_swap(begin, std::next(begin, swap_index));
         }
         ++begin;
         --n;
